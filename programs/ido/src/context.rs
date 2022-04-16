@@ -4,13 +4,7 @@ use anchor_spl::token::{Mint, Token, TokenAccount};
 
 #[derive(Accounts)]
 pub struct Initialize<'info> {
-    #[account(
-        init,
-        payer = ido_authority,
-        seeds = [b"ido"],
-        bump,
-        space = 8 + Ido::LEN,
-    )]
+    #[account(init, payer = ido_authority, seeds = [b"ido"], bump, space = 8 + Ido::LEN)]
     pub ido: Account<'info, Ido>,
     #[account(mut)]
     pub ido_authority: Signer<'info>,
@@ -145,6 +139,19 @@ pub struct RemoveOrder<'info> {
     pub user: Signer<'info>,
     #[account(mut)]
     pub user_acdm: Account<'info, TokenAccount>,
+    pub token_program: Program<'info, Token>,
+}
+
+#[derive(Accounts)]
+pub struct WithdrawIdoUsdc<'info> {
+    #[account(mut, seeds = [b"ido"], bump = ido.bump)]
+    pub ido: Account<'info, Ido>,
+    #[account(mut, address = ido.authority)]
+    pub ido_authority: Signer<'info>,
+    #[account(mut, seeds = [b"ido_usdc"], bump)]
+    pub ido_usdc: Account<'info, TokenAccount>,
+    #[account(mut)]
+    pub to: Account<'info, TokenAccount>,
     pub token_program: Program<'info, Token>,
 }
 

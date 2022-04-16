@@ -231,6 +231,19 @@ pub mod ido {
         token::transfer(cpi_ctx, usdc_amount)
     }
 
+    pub fn withdraw_ido_usdc(ctx: Context<WithdrawIdoUsdc>) -> Result<()> {
+        let seeds = &[b"ido".as_ref(), &[ctx.accounts.ido.bump]];
+        let signer = &[&seeds[..]];
+        let cpi_accounts = Transfer {
+            from: ctx.accounts.ido_usdc.to_account_info(),
+            to: ctx.accounts.to.to_account_info(),
+            authority: ctx.accounts.ido.to_account_info(),
+        };
+        let cpi_program = ctx.accounts.token_program.to_account_info();
+        let cpi_ctx = CpiContext::new_with_signer(cpi_program, cpi_accounts, signer);
+        token::transfer(cpi_ctx, ctx.accounts.ido_usdc.amount)
+    }
+
     pub fn remove_order(ctx: Context<RemoveOrder>, id: u64) -> Result<()> {
         let seeds = &[
             b"order".as_ref(),

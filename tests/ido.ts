@@ -281,4 +281,25 @@ describe("ido", () => {
     const userAcdmAccount = await getAccount(connection, userAcdm);
     expect(userAcdmAccount.amount).to.eql(BigInt(460));
   });
+
+  it("withdraws ido usdc", async () => {
+    const idoAuthorityUsdc = (await getOrCreateAssociatedTokenAccount(
+      connection,
+      idoAuthority,
+      usdcMint,
+      idoAuthority.publicKey,
+    )).address;
+
+    await idoProgram.methods.withdrawIdoUsdc().accounts({
+      ido,
+      idoAuthority: idoAuthority.publicKey,
+      idoUsdc,
+      to: idoAuthorityUsdc,
+      tokenProgram: TOKEN_PROGRAM_ID,
+    }).signers([idoAuthority]).rpc();
+  });
+
+  it("ends ido", async () => {
+    await endIdo();
+  });
 });
