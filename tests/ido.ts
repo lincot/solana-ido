@@ -282,6 +282,7 @@ describe("ido", () => {
 
   let order: PublicKey;
   let orderAcdm: PublicKey;
+  let orderId: BN;
 
   it("adds order", async () => {
     [order] = await PublicKey
@@ -296,17 +297,28 @@ describe("ido", () => {
         idoProgram.programId,
       );
 
-    await idoProgram.methods.addOrder(new BN(100), new BN(130_000)).accounts({
-      ido,
-      order,
-      acdmMint,
-      orderAcdm,
-      user: user.publicKey,
-      userAcdm,
-      rent: SYSVAR_RENT_PUBKEY,
-      tokenProgram: TOKEN_PROGRAM_ID,
-      systemProgram: SystemProgram.programId,
-    }).signers([user]).rpc();
+    let listener: number;
+    const [event, _] = await new Promise((resolve, _reject) => {
+      listener = idoProgram.addEventListener("OrderEvent", (event, slot) => {
+        resolve([event, slot]);
+      });
+      idoProgram.methods.addOrder(new BN(100), new BN(130_000)).accounts({
+        ido,
+        order,
+        acdmMint,
+        orderAcdm,
+        user: user.publicKey,
+        userAcdm,
+        rent: SYSVAR_RENT_PUBKEY,
+        tokenProgram: TOKEN_PROGRAM_ID,
+        systemProgram: SystemProgram.programId,
+      }).signers([user]).rpc();
+    });
+    await idoProgram.removeEventListener(listener);
+
+    orderId = event.id;
+
+    expect(orderId.toNumber()).to.eq(0);
 
     const userAcdmAccount = await getAccount(connection, userAcdm);
     expect(userAcdmAccount.amount).to.eql(BigInt(400));
@@ -316,7 +328,7 @@ describe("ido", () => {
   });
 
   it("redeems order partly", async () => {
-    await idoProgram.methods.redeemOrder(new BN(0), new BN(40)).accounts({
+    await idoProgram.methods.redeemOrder(orderId, new BN(40)).accounts({
       ido,
       usdcMint,
       idoUsdc,
@@ -354,7 +366,7 @@ describe("ido", () => {
   });
 
   it("closes order", async () => {
-    await idoProgram.methods.removeOrder(new BN(0)).accounts({
+    await idoProgram.methods.removeOrder(orderId).accounts({
       order,
       orderAcdm,
       user: user.publicKey,

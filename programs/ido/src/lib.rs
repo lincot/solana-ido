@@ -4,10 +4,12 @@ use anchor_spl::token::{self, Burn, CloseAccount, MintTo, TokenAccount, Transfer
 use account::*;
 use context::*;
 use error::*;
+use event::*;
 
 pub mod account;
 pub mod context;
 pub mod error;
+pub mod event;
 
 declare_id!("Hxcws9iykaMYStaLJhHiz3RtxqrpgfjMxaarRoGVan5q");
 
@@ -264,7 +266,7 @@ pub mod ido {
         Ok(())
     }
 
-    pub fn add_order(ctx: Context<AddOrder>, acdm_amount: u64, acdm_price: u64) -> Result<u64> {
+    pub fn add_order(ctx: Context<AddOrder>, acdm_amount: u64, acdm_price: u64) -> Result<()> {
         let ido = &mut ctx.accounts.ido;
 
         match ido.state {
@@ -291,7 +293,9 @@ pub mod ido {
 
         ido.orders += 1;
 
-        Ok(ido.orders - 1)
+        emit!(OrderEvent { id: ido.orders - 1 });
+
+        Ok(())
     }
 
     pub fn redeem_order<'a, 'b, 'info>(
