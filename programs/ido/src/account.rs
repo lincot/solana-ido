@@ -11,6 +11,8 @@ pub enum IdoState {
 #[account]
 pub struct Ido {
     pub bump: u8,
+    pub bump_acdm: u8,
+    pub bump_usdc: u8,
     pub authority: Pubkey,
     pub state: IdoState,
     pub acdm_mint: Pubkey,
@@ -23,23 +25,25 @@ pub struct Ido {
     pub sale_rounds_started: u8,
 }
 impl Ido {
-    pub const LEN: usize = 1 + 32 + 1 + 32 + 32 + 8 + 8 + 8 + 8 + 8 + 1;
+    pub const LEN: usize = 1 + 1 + 1 + 32 + 1 + 32 + 32 + 8 + 8 + 8 + 8 + 8 + 1;
 }
 
 #[account]
 pub struct Order {
     pub bump: u8,
+    pub bump_acdm: u8,
     pub authority: Pubkey,
     pub price: u64,
 }
 impl Order {
-    pub const LEN: usize = 1 + 32 + 8;
+    pub const LEN: usize = 1 + 1 + 32 + 8;
 }
 
 #[account]
 pub struct Referer {
+    pub bump: u8,
     pub referer: Pubkey,
 }
 impl Referer {
-    pub const LEN: usize = 32;
+    pub const LEN: usize = 1 + 32;
 }

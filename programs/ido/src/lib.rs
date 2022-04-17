@@ -23,6 +23,8 @@ pub mod ido {
         let ido = &mut ctx.accounts.ido;
 
         ido.bump = *ctx.bumps.get("ido").unwrap();
+        ido.bump_acdm = *ctx.bumps.get("ido_acdm").unwrap();
+        ido.bump_usdc = *ctx.bumps.get("ido_usdc").unwrap();
         ido.authority = ctx.accounts.ido_authority.key();
         ido.state = IdoState::NotStarted;
         ido.acdm_mint = ctx.accounts.acdm_mint.key();
@@ -38,6 +40,7 @@ pub mod ido {
     }
 
     pub fn set_referer(ctx: Context<SetReferer>, referer: Pubkey) -> Result<()> {
+        ctx.accounts.user_referer.bump = *ctx.bumps.get("user_referer").unwrap();
         ctx.accounts.user_referer.referer = referer;
 
         Ok(())
@@ -247,6 +250,7 @@ pub mod ido {
 
         let order = &mut ctx.accounts.order;
         order.bump = *ctx.bumps.get("order").unwrap();
+        order.bump_acdm = *ctx.bumps.get("order_acdm").unwrap();
         order.authority = ctx.accounts.user.key();
         order.price = acdm_price;
 
@@ -406,12 +410,19 @@ fn validate_referer(
     referer_usdc_account_info: &AccountInfo,
     user: Pubkey,
 ) -> Result<Pubkey> {
-    let (referer_key, _) = Pubkey::find_program_address(&[b"referer", user.as_ref()], &ID);
-    if referer_account_info.key() != referer_key {
+    if referer_account_info.owner != &ID {
         return err!(IdoError::RefererPda);
     }
 
     let user_referer = Referer::try_deserialize(&mut &referer_account_info.try_borrow_data()?[..])?;
+
+    let referer_key =
+        Pubkey::create_program_address(&[b"referer", user.as_ref(), &[user_referer.bump]], &ID)
+            .map_err(|_| IdoError::RefererPda)?;
+    if referer_account_info.key() != referer_key {
+        return err!(IdoError::RefererPda);
+    }
+
     let user2_usdc =
         TokenAccount::try_deserialize(&mut &referer_usdc_account_info.try_borrow_data()?[..])?;
     if user2_usdc.owner != user_referer.referer {
