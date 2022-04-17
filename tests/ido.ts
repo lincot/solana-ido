@@ -32,19 +32,21 @@ describe("ido", () => {
   const idoAuthority = new Keypair();
   const user = new Keypair();
   const user2 = new Keypair();
+  const user3 = new Keypair();
 
   it("airdrops", async () => {
     await Promise.all(
       await Promise.all(
-        [acdmMintAuthority, usdcMintAuthority, idoAuthority, user, user2].map(
-          async (k) =>
-            connection.confirmTransaction(
-              await connection.requestAirdrop(
-                k.publicKey,
-                100_000_000,
+        [acdmMintAuthority, usdcMintAuthority, idoAuthority, user, user2, user3]
+          .map(
+            async (k) =>
+              connection.confirmTransaction(
+                await connection.requestAirdrop(
+                  k.publicKey,
+                  100_000_000,
+                ),
               ),
-            ),
-        ),
+          ),
       ),
     );
   });
@@ -132,21 +134,30 @@ describe("ido", () => {
 
   let userAcdm: PublicKey;
   let userUsdc: PublicKey;
+  let user2Acdm: PublicKey;
+  let user2Usdc: PublicKey;
+  let user3Usdc: PublicKey;
+  let idoAuthorityUsdc: PublicKey;
 
-  it("buys ACDM", async () => {
-    userAcdm = (await getOrCreateAssociatedTokenAccount(
+  const getAta = async (user: Keypair, mint: PublicKey) =>
+    (await getOrCreateAssociatedTokenAccount(
       connection,
       user,
-      acdmMint,
+      mint,
       user.publicKey,
     )).address;
 
-    userUsdc = (await getOrCreateAssociatedTokenAccount(
-      connection,
-      user,
-      usdcMint,
-      user.publicKey,
-    )).address;
+  it("sets users' ATAs", async () => {
+    [userAcdm, userUsdc, user2Acdm, user2Usdc, user3Usdc, idoAuthorityUsdc] =
+      await Promise.all([
+        getAta(user, acdmMint),
+        getAta(user, usdcMint),
+        getAta(user2, acdmMint),
+        getAta(user2, usdcMint),
+        getAta(user3, usdcMint),
+        getAta(idoAuthority, usdcMint),
+      ]);
+
     await mintTo(
       connection,
       user,
@@ -156,6 +167,46 @@ describe("ido", () => {
       100_000_000,
     );
 
+    await mintTo(
+      connection,
+      user2,
+      usdcMint,
+      user2Usdc,
+      usdcMintAuthority,
+      100_000_000,
+    );
+  });
+
+  const setReferer = async (
+    user: Keypair,
+    referer: PublicKey,
+  ): Promise<PublicKey> => {
+    const [userReferer] = await PublicKey
+      .findProgramAddress(
+        [Buffer.from("referer"), user.publicKey.toBuffer()],
+        idoProgram.programId,
+      );
+
+    await idoProgram.methods.setReferer(referer).accounts({
+      user: user.publicKey,
+      userReferer,
+      systemProgram: SystemProgram.programId,
+    }).signers([user]).rpc();
+
+    return userReferer;
+  };
+
+  let userReferer: PublicKey;
+  let user2Referer: PublicKey;
+
+  it("sets user's referer to user2 and user2's referer to user3", async () => {
+    [userReferer, user2Referer] = await Promise.all([
+      setReferer(user, user2.publicKey),
+      setReferer(user2, user3.publicKey),
+    ]);
+  });
+
+  it("buys ACDM", async () => {
     await idoProgram.methods.buyAcdm(new BN(500)).accounts({
       ido,
       idoAcdm,
@@ -164,13 +215,38 @@ describe("ido", () => {
       userAcdm,
       userUsdc,
       tokenProgram: TOKEN_PROGRAM_ID,
-    }).signers([user]).rpc();
+    }).signers([user]).remainingAccounts([{
+      pubkey: userReferer,
+      isWritable: false,
+      isSigner: false,
+    }, {
+      pubkey: user2Usdc,
+      isWritable: true,
+      isSigner: false,
+    }, {
+      pubkey: user2Referer,
+      isWritable: false,
+      isSigner: false,
+    }, {
+      pubkey: user3Usdc,
+      isWritable: true,
+      isSigner: false,
+    }]).rpc();
 
     const userAcdmAccount = await getAccount(connection, userAcdm);
     expect(userAcdmAccount.amount).to.eql(BigInt(500));
 
     const userUsdcAccount = await getAccount(connection, userUsdc);
     expect(userUsdcAccount.amount).to.eql(BigInt(50_000_000));
+
+    const user2UsdcAccount = await getAccount(connection, user2Usdc);
+    expect(user2UsdcAccount.amount).to.eql(BigInt(101_250_000));
+
+    const user3UsdcAccount = await getAccount(connection, user3Usdc);
+    expect(user3UsdcAccount.amount).to.eql(BigInt(1_250_000));
+
+    const idoUsdcAccount = await getAccount(connection, idoUsdc);
+    expect(idoUsdcAccount.amount).to.eql(BigInt(47_500_000));
   });
 
   it("starts trade round", async () => {
@@ -221,32 +297,7 @@ describe("ido", () => {
     expect(orderAcdmAccount.amount).to.eql(BigInt(100));
   });
 
-  let user2Acdm: PublicKey;
-  let user2Usdc: PublicKey;
-
   it("redeems order partly", async () => {
-    user2Acdm = (await getOrCreateAssociatedTokenAccount(
-      connection,
-      user2,
-      acdmMint,
-      user2.publicKey,
-    )).address;
-
-    user2Usdc = (await getOrCreateAssociatedTokenAccount(
-      connection,
-      user,
-      usdcMint,
-      user2.publicKey,
-    )).address;
-    await mintTo(
-      connection,
-      user2,
-      usdcMint,
-      user2Usdc,
-      usdcMintAuthority,
-      100_000_000,
-    );
-
     await idoProgram.methods.redeemOrder(new BN(0), new BN(40)).accounts({
       ido,
       usdcMint,
@@ -283,13 +334,6 @@ describe("ido", () => {
   });
 
   it("withdraws ido usdc", async () => {
-    const idoAuthorityUsdc = (await getOrCreateAssociatedTokenAccount(
-      connection,
-      idoAuthority,
-      usdcMint,
-      idoAuthority.publicKey,
-    )).address;
-
     await idoProgram.methods.withdrawIdoUsdc().accounts({
       ido,
       idoAuthority: idoAuthority.publicKey,
@@ -297,6 +341,15 @@ describe("ido", () => {
       to: idoAuthorityUsdc,
       tokenProgram: TOKEN_PROGRAM_ID,
     }).signers([idoAuthority]).rpc();
+
+    const idoUsdcAccount = await getAccount(connection, idoUsdc);
+    expect(idoUsdcAccount.amount).to.eql(BigInt(0));
+
+    const idoAuthorityUsdcAccount = await getAccount(
+      connection,
+      idoAuthorityUsdc,
+    );
+    expect(idoAuthorityUsdcAccount.amount).to.eql(BigInt(47_500_000));
   });
 
   it("ends ido", async () => {

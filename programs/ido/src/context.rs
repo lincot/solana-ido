@@ -12,6 +12,21 @@ pub struct Initialize<'info> {
 }
 
 #[derive(Accounts)]
+pub struct SetReferer<'info> {
+    #[account(mut)]
+    pub user: Signer<'info>,
+    #[account(
+        init_if_needed,
+        payer = user,
+        seeds = [b"referer", user.key().as_ref()],
+        bump,
+        space = 8 + Referer::LEN,
+    )]
+    pub user_referer: Account<'info, Referer>,
+    pub system_program: Program<'info, System>,
+}
+
+#[derive(Accounts)]
 pub struct StartSaleRound<'info> {
     #[account(mut, seeds = [b"ido"], bump = ido.bump)]
     pub ido: Account<'info, Ido>,
@@ -109,7 +124,7 @@ pub struct AddOrder<'info> {
 #[derive(Accounts)]
 #[instruction(id: u64)]
 pub struct RedeemOrder<'info> {
-    #[account(seeds = [b"ido"], bump = ido.bump)]
+    #[account(mut, seeds = [b"ido"], bump = ido.bump)]
     pub ido: Box<Account<'info, Ido>>,
     #[account(address = ido.usdc_mint)]
     pub usdc_mint: Account<'info, Mint>,

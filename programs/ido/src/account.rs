@@ -34,3 +34,11 @@ pub struct Order {
 impl Order {
     pub const LEN: usize = 1 + 32 + 8;
 }
+
+#[account]
+pub struct Referer {
+    pub referer: Pubkey,
+}
+impl Referer {
+    pub const LEN: usize = 32;
+}
