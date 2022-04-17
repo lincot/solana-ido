@@ -327,6 +327,25 @@ describe("ido", () => {
     expect(orderAcdmAccount.amount).to.eql(BigInt(100));
   });
 
+  it("fails to redeem without needed referer accounts", async () => {
+    await expect(
+      idoProgram.methods.redeemOrder(orderId, new BN(40)).accounts({
+        ido,
+        usdcMint,
+        idoUsdc,
+        order,
+        orderAcdm,
+        buyer: user2.publicKey,
+        buyerAcdm: user2Acdm,
+        buyerUsdc: user2Usdc,
+        seller: user.publicKey,
+        sellerMember: member,
+        sellerUsdc: userUsdc,
+        tokenProgram: TOKEN_PROGRAM_ID,
+      }).signers([user2]).rpc(),
+    ).to.be.rejected;
+  });
+
   it("redeems order partly", async () => {
     await idoProgram.methods.redeemOrder(orderId, new BN(40)).accounts({
       ido,
