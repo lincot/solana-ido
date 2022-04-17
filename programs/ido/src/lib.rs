@@ -1,5 +1,7 @@
 use anchor_lang::prelude::*;
 
+use anchor_spl::token::{self, Burn, CloseAccount, MintTo, TokenAccount, Transfer};
+
 use account::*;
 use context::*;
 use error::*;
@@ -13,7 +15,6 @@ declare_id!("Hxcws9iykaMYStaLJhHiz3RtxqrpgfjMxaarRoGVan5q");
 #[program]
 pub mod ido {
     use super::*;
-    use anchor_spl::token::{self, Burn, CloseAccount, MintTo, TokenAccount, Transfer};
 
     pub fn initialize(
         ctx: Context<Initialize>,
@@ -92,30 +93,22 @@ pub mod ido {
         }
 
         let mut usdc_amount_to_ido = acdm_amount * ido.acdm_price;
+        let usdc_amount_to_referer = usdc_amount_to_ido / 40; // 2.5%
 
         if ![0, 2, 4].contains(&ctx.remaining_accounts.len()) {
             return err!(IdoError::RefererAccountsAmount);
         }
 
         if ctx.remaining_accounts.len() >= 2 {
-            let (referer_key, _) =
-                Pubkey::find_program_address(&[b"referer", ctx.accounts.user.key().as_ref()], &ID);
-            if ctx.remaining_accounts[0].key() != referer_key {
-                return err!(IdoError::RefererPda);
-            }
-
-            let user_referer =
-                Referer::try_deserialize(&mut &ctx.remaining_accounts[0].try_borrow_data()?[..])?;
-            let user2_usdc = TokenAccount::try_deserialize(
-                &mut &ctx.remaining_accounts[1].try_borrow_data()?[..],
+            let user_referer = validate_referer(
+                &ctx.remaining_accounts[0],
+                &ctx.remaining_accounts[1],
+                ctx.accounts.user.key(),
             )?;
-            if user2_usdc.owner != user_referer.referer {
-                return err!(IdoError::RefererOwner);
-            }
+
+            usdc_amount_to_ido -= usdc_amount_to_referer;
 
             msg!("sending fee to first referer");
-
-            let usdc_amount_to_referer = usdc_amount_to_ido / 40; // 2.5%
 
             let cpi_accounts = Transfer {
                 from: ctx.accounts.user_usdc.to_account_info(),
@@ -126,24 +119,14 @@ pub mod ido {
             let cpi_ctx = CpiContext::new(cpi_program, cpi_accounts);
             token::transfer(cpi_ctx, usdc_amount_to_referer)?;
 
-            usdc_amount_to_ido -= usdc_amount_to_referer;
-
             if ctx.remaining_accounts.len() >= 4 {
-                let (referer_key, _) =
-                    Pubkey::find_program_address(&[b"referer", user_referer.referer.as_ref()], &ID);
-                if ctx.remaining_accounts[2].key() != referer_key {
-                    return err!(IdoError::RefererPda);
-                }
+                validate_referer(
+                    &ctx.remaining_accounts[2],
+                    &ctx.remaining_accounts[3],
+                    user_referer,
+                )?;
 
-                let user2_referer = Referer::try_deserialize(
-                    &mut &ctx.remaining_accounts[2].try_borrow_data()?[..],
-                )?;
-                let user3_usdc = TokenAccount::try_deserialize(
-                    &mut &ctx.remaining_accounts[3].try_borrow_data()?[..],
-                )?;
-                if user3_usdc.owner != user2_referer.referer {
-                    return err!(IdoError::RefererOwner);
-                }
+                usdc_amount_to_ido -= usdc_amount_to_referer;
 
                 msg!("sending fee to second referer");
 
@@ -155,19 +138,19 @@ pub mod ido {
                 let cpi_program = ctx.accounts.token_program.to_account_info();
                 let cpi_ctx = CpiContext::new(cpi_program, cpi_accounts);
                 token::transfer(cpi_ctx, usdc_amount_to_referer)?;
-
-                usdc_amount_to_ido -= usdc_amount_to_referer;
             }
         }
 
-        let cpi_accounts = Transfer {
-            from: ctx.accounts.user_usdc.to_account_info(),
-            to: ctx.accounts.ido_usdc.to_account_info(),
-            authority: ctx.accounts.user.to_account_info(),
-        };
-        let cpi_program = ctx.accounts.token_program.to_account_info();
-        let cpi_ctx = CpiContext::new(cpi_program, cpi_accounts);
-        token::transfer(cpi_ctx, usdc_amount_to_ido)?;
+        if usdc_amount_to_ido != 0 {
+            let cpi_accounts = Transfer {
+                from: ctx.accounts.user_usdc.to_account_info(),
+                to: ctx.accounts.ido_usdc.to_account_info(),
+                authority: ctx.accounts.user.to_account_info(),
+            };
+            let cpi_program = ctx.accounts.token_program.to_account_info();
+            let cpi_ctx = CpiContext::new(cpi_program, cpi_accounts);
+            token::transfer(cpi_ctx, usdc_amount_to_ido)?;
+        }
 
         let seeds = &[b"ido".as_ref(), &[ido.bump]];
         let signer = &[&seeds[..]];
@@ -272,7 +255,11 @@ pub mod ido {
         Ok(ido.orders - 1)
     }
 
-    pub fn redeem_order(ctx: Context<RedeemOrder>, id: u64, acdm_amount: u64) -> Result<()> {
+    pub fn redeem_order<'a, 'b, 'info>(
+        ctx: Context<'a, 'b, 'b, 'info, RedeemOrder<'info>>,
+        id: u64,
+        acdm_amount: u64,
+    ) -> Result<()> {
         let ido = &mut ctx.accounts.ido;
 
         match ido.state {
@@ -281,6 +268,76 @@ pub mod ido {
             IdoState::TradeRound => {}
             IdoState::Over => return err!(IdoError::IdoIsOver),
         }
+
+        let usdc_amount_total = acdm_amount * ctx.accounts.order.price;
+        ido.usdc_traded += usdc_amount_total;
+
+        let mut usdc_amount_to_ido = usdc_amount_total / 20; // 5%
+        let usdc_amount_so_seller = usdc_amount_total - usdc_amount_to_ido;
+
+        if ctx.remaining_accounts.len() >= 2 {
+            let seller_referer = validate_referer(
+                &ctx.remaining_accounts[0],
+                &ctx.remaining_accounts[1],
+                ctx.accounts.seller.key(),
+            )?;
+
+            let usdc_amount_to_referer = usdc_amount_to_ido * 3 / 5; // 3%
+            usdc_amount_to_ido -= usdc_amount_to_referer;
+
+            msg!("sending fee to first referer");
+
+            let cpi_accounts = Transfer {
+                from: ctx.accounts.buyer_usdc.to_account_info(),
+                to: ctx.remaining_accounts[1].clone(),
+                authority: ctx.accounts.buyer.to_account_info(),
+            };
+            let cpi_program = ctx.accounts.token_program.to_account_info();
+            let cpi_ctx = CpiContext::new(cpi_program, cpi_accounts);
+            token::transfer(cpi_ctx, usdc_amount_to_referer)?;
+
+            if ctx.remaining_accounts.len() >= 4 {
+                validate_referer(
+                    &ctx.remaining_accounts[2],
+                    &ctx.remaining_accounts[3],
+                    seller_referer,
+                )?;
+
+                let usdc_amount_to_referer = usdc_amount_to_ido; // 2%
+                usdc_amount_to_ido = 0;
+
+                msg!("sending fee to second referer");
+
+                let cpi_accounts = Transfer {
+                    from: ctx.accounts.buyer_usdc.to_account_info(),
+                    to: ctx.remaining_accounts[3].clone(),
+                    authority: ctx.accounts.buyer.to_account_info(),
+                };
+                let cpi_program = ctx.accounts.token_program.to_account_info();
+                let cpi_ctx = CpiContext::new(cpi_program, cpi_accounts);
+                token::transfer(cpi_ctx, usdc_amount_to_referer)?;
+            }
+        }
+
+        if usdc_amount_to_ido != 0 {
+            let cpi_accounts = Transfer {
+                from: ctx.accounts.buyer_usdc.to_account_info(),
+                to: ctx.accounts.ido_usdc.to_account_info(),
+                authority: ctx.accounts.buyer.to_account_info(),
+            };
+            let cpi_program = ctx.accounts.token_program.to_account_info();
+            let cpi_ctx = CpiContext::new(cpi_program, cpi_accounts);
+            token::transfer(cpi_ctx, usdc_amount_to_ido)?;
+        }
+
+        let cpi_accounts = Transfer {
+            from: ctx.accounts.buyer_usdc.to_account_info(),
+            to: ctx.accounts.seller_usdc.to_account_info(),
+            authority: ctx.accounts.buyer.to_account_info(),
+        };
+        let cpi_program = ctx.accounts.token_program.to_account_info();
+        let cpi_ctx = CpiContext::new(cpi_program, cpi_accounts);
+        token::transfer(cpi_ctx, usdc_amount_so_seller)?;
 
         let seeds = &[
             b"order".as_ref(),
@@ -296,21 +353,7 @@ pub mod ido {
         };
         let cpi_program = ctx.accounts.token_program.to_account_info();
         let cpi_ctx = CpiContext::new_with_signer(cpi_program, cpi_accounts, signer);
-        token::transfer(cpi_ctx, acdm_amount)?;
-
-        let usdc_amount = acdm_amount * ctx.accounts.order.price;
-        let cpi_accounts = Transfer {
-            from: ctx.accounts.buyer_usdc.to_account_info(),
-            to: ctx.accounts.seller_usdc.to_account_info(),
-            authority: ctx.accounts.buyer.to_account_info(),
-        };
-        let cpi_program = ctx.accounts.token_program.to_account_info();
-        let cpi_ctx = CpiContext::new(cpi_program, cpi_accounts);
-        token::transfer(cpi_ctx, usdc_amount)?;
-
-        ido.usdc_traded += usdc_amount;
-
-        Ok(())
+        token::transfer(cpi_ctx, acdm_amount)
     }
 
     pub fn withdraw_ido_usdc(ctx: Context<WithdrawIdoUsdc>) -> Result<()> {
@@ -356,6 +399,26 @@ pub mod ido {
         let cpi_ctx = CpiContext::new_with_signer(cpi_program, cpi_accounts, signer);
         token::close_account(cpi_ctx)
     }
+}
+
+fn validate_referer(
+    referer_account_info: &AccountInfo,
+    referer_usdc_account_info: &AccountInfo,
+    user: Pubkey,
+) -> Result<Pubkey> {
+    let (referer_key, _) = Pubkey::find_program_address(&[b"referer", user.as_ref()], &ID);
+    if referer_account_info.key() != referer_key {
+        return err!(IdoError::RefererPda);
+    }
+
+    let user_referer = Referer::try_deserialize(&mut &referer_account_info.try_borrow_data()?[..])?;
+    let user2_usdc =
+        TokenAccount::try_deserialize(&mut &referer_usdc_account_info.try_borrow_data()?[..])?;
+    if user2_usdc.owner != user_referer.referer {
+        return err!(IdoError::RefererOwner);
+    }
+
+    Ok(user_referer.referer)
 }
 
 const fn sale_price_formula() -> u64 {

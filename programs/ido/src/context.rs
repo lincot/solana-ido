@@ -127,7 +127,9 @@ pub struct RedeemOrder<'info> {
     #[account(mut, seeds = [b"ido"], bump = ido.bump)]
     pub ido: Box<Account<'info, Ido>>,
     #[account(address = ido.usdc_mint)]
-    pub usdc_mint: Account<'info, Mint>,
+    pub usdc_mint: Box<Account<'info, Mint>>,
+    #[account(mut, seeds = [b"ido_usdc"], bump)]
+    pub ido_usdc: Box<Account<'info, TokenAccount>>,
     #[account(mut, seeds = [b"order", id.to_le_bytes().as_ref()], bump = order.bump)]
     pub order: Account<'info, Order>,
     #[account(mut, seeds = [b"order_acdm", id.to_le_bytes().as_ref()], bump)]
@@ -138,6 +140,9 @@ pub struct RedeemOrder<'info> {
     pub buyer_acdm: Account<'info, TokenAccount>,
     #[account(mut)]
     pub buyer_usdc: Account<'info, TokenAccount>,
+    /// CHECK:
+    #[account(address = order.authority)]
+    pub seller: UncheckedAccount<'info>,
     #[account(mut, associated_token::authority = order.authority, associated_token::mint = usdc_mint)]
     pub seller_usdc: Account<'info, TokenAccount>,
     pub token_program: Program<'info, Token>,

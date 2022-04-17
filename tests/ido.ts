@@ -215,7 +215,7 @@ describe("ido", () => {
       userAcdm,
       userUsdc,
       tokenProgram: TOKEN_PROGRAM_ID,
-    }).signers([user]).remainingAccounts([{
+    }).remainingAccounts([{
       pubkey: userReferer,
       isWritable: false,
       isSigner: false,
@@ -231,7 +231,7 @@ describe("ido", () => {
       pubkey: user3Usdc,
       isWritable: true,
       isSigner: false,
-    }]).rpc();
+    }]).signers([user]).rpc();
 
     const userAcdmAccount = await getAccount(connection, userAcdm);
     expect(userAcdmAccount.amount).to.eql(BigInt(500));
@@ -301,17 +301,35 @@ describe("ido", () => {
     await idoProgram.methods.redeemOrder(new BN(0), new BN(40)).accounts({
       ido,
       usdcMint,
+      idoUsdc,
       order,
       orderAcdm,
       buyer: user2.publicKey,
       buyerAcdm: user2Acdm,
       buyerUsdc: user2Usdc,
+      seller: user.publicKey,
       sellerUsdc: userUsdc,
       tokenProgram: TOKEN_PROGRAM_ID,
-    }).signers([user2]).rpc();
+    }).remainingAccounts([{
+      pubkey: userReferer,
+      isWritable: false,
+      isSigner: false,
+    }, {
+      pubkey: user2Usdc,
+      isWritable: true,
+      isSigner: false,
+    }, {
+      pubkey: user2Referer,
+      isWritable: false,
+      isSigner: false,
+    }, {
+      pubkey: user3Usdc,
+      isWritable: true,
+      isSigner: false,
+    }]).signers([user2]).rpc();
 
     const userUsdcAccount = await getAccount(connection, userUsdc);
-    expect(userUsdcAccount.amount).to.eql(BigInt(55_200_000));
+    expect(userUsdcAccount.amount).to.eql(BigInt(54_940_000));
 
     const user2AcdmAccount = await getAccount(connection, user2Acdm);
     expect(user2AcdmAccount.amount).to.eql(BigInt(40));
