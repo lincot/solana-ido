@@ -410,26 +410,21 @@ fn validate_referer(
     referer_usdc_account_info: &AccountInfo,
     user: Pubkey,
 ) -> Result<Pubkey> {
-    if referer_account_info.owner != &ID {
-        return err!(IdoError::RefererPda);
-    }
+    let referer_account = Account::<Referer>::try_from(referer_account_info)?;
+    let user2_usdc = Account::<TokenAccount>::try_from(referer_usdc_account_info)?;
 
-    let user_referer = Referer::try_deserialize(&mut &referer_account_info.try_borrow_data()?[..])?;
-
-    let referer_key =
-        Pubkey::create_program_address(&[b"referer", user.as_ref(), &[user_referer.bump]], &ID)
+    let pda_key =
+        Pubkey::create_program_address(&[b"referer", user.as_ref(), &[referer_account.bump]], &ID)
             .map_err(|_| IdoError::RefererPda)?;
-    if referer_account_info.key() != referer_key {
+    if referer_account_info.key() != pda_key {
         return err!(IdoError::RefererPda);
     }
 
-    let user2_usdc =
-        TokenAccount::try_deserialize(&mut &referer_usdc_account_info.try_borrow_data()?[..])?;
-    if user2_usdc.owner != user_referer.referer {
+    if user2_usdc.owner != referer_account.referer {
         return err!(IdoError::RefererOwner);
     }
 
-    Ok(user_referer.referer)
+    Ok(referer_account.referer)
 }
 
 const fn sale_price_formula(prev_price: u64) -> u64 {
