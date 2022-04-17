@@ -20,9 +20,10 @@ pub struct Ido {
     pub orders: u64,
     pub round_time: i64,
     pub current_state_start_ts: i64,
+    pub sale_rounds_started: u8,
 }
 impl Ido {
-    pub const LEN: usize = 1 + 32 + 1 + 32 + 32 + 8 + 8 + 8 + 8 + 8;
+    pub const LEN: usize = 1 + 32 + 1 + 32 + 32 + 8 + 8 + 8 + 8 + 8 + 1;
 }
 
 #[account]

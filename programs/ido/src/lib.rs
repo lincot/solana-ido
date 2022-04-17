@@ -1,5 +1,4 @@
 use anchor_lang::prelude::*;
-
 use anchor_spl::token::{self, Burn, CloseAccount, MintTo, TokenAccount, Transfer};
 
 use account::*;
@@ -11,6 +10,8 @@ pub mod context;
 pub mod error;
 
 declare_id!("Hxcws9iykaMYStaLJhHiz3RtxqrpgfjMxaarRoGVan5q");
+
+const INITIAL_PRICE: u64 = 100_000;
 
 #[program]
 pub mod ido {
@@ -65,8 +66,12 @@ pub mod ido {
 
         ido.state = IdoState::SaleRound;
         ido.current_state_start_ts = ts;
-
-        ido.acdm_price = sale_price_formula();
+        ido.acdm_price = if ido.sale_rounds_started == 0 {
+            INITIAL_PRICE
+        } else {
+            sale_price_formula(ido.acdm_price)
+        };
+        ido.sale_rounds_started += 1;
 
         let amount_to_mint = ido.usdc_traded / ido.acdm_price;
         let cpi_accounts = MintTo {
@@ -421,6 +426,6 @@ fn validate_referer(
     Ok(user_referer.referer)
 }
 
-const fn sale_price_formula() -> u64 {
-    100_000
+const fn sale_price_formula(prev_price: u64) -> u64 {
+    prev_price * 103 / 100 + INITIAL_PRICE * 2 / 5
 }
