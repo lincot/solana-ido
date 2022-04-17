@@ -17,12 +17,7 @@ const INITIAL_PRICE: u64 = 100_000;
 pub mod ido {
     use super::*;
 
-    pub fn initialize(
-        ctx: Context<Initialize>,
-        acdm_mint: Pubkey,
-        usdc_mint: Pubkey,
-        round_time: i64,
-    ) -> Result<()> {
+    pub fn initialize(ctx: Context<Initialize>, round_time: i64) -> Result<()> {
         let ts = Clock::get()?.unix_timestamp;
 
         let ido = &mut ctx.accounts.ido;
@@ -30,8 +25,8 @@ pub mod ido {
         ido.bump = *ctx.bumps.get("ido").unwrap();
         ido.authority = ctx.accounts.ido_authority.key();
         ido.state = IdoState::NotStarted;
-        ido.acdm_mint = acdm_mint;
-        ido.usdc_mint = usdc_mint;
+        ido.acdm_mint = ctx.accounts.acdm_mint.key();
+        ido.usdc_mint = ctx.accounts.usdc_mint.key();
         ido.usdc_traded = 1_000_000_000;
         if round_time < 0 {
             return err!(IdoError::RoundTimeInvalid);

@@ -8,6 +8,28 @@ pub struct Initialize<'info> {
     pub ido: Account<'info, Ido>,
     #[account(mut)]
     pub ido_authority: Signer<'info>,
+    pub acdm_mint: Account<'info, Mint>,
+    #[account(
+        init,
+        payer = ido_authority,
+        seeds = [b"ido_acdm"],
+        bump,
+        token::authority = ido,
+        token::mint = acdm_mint,
+    )]
+    pub ido_acdm: Account<'info, TokenAccount>,
+    pub usdc_mint: Account<'info, Mint>,
+    #[account(
+        init,
+        payer = ido_authority,
+        seeds = [b"ido_usdc"],
+        bump,
+        token::authority = ido,
+        token::mint = usdc_mint,
+    )]
+    pub ido_usdc: Account<'info, TokenAccount>,
+    pub rent: Sysvar<'info, Rent>,
+    pub token_program: Program<'info, Token>,
     pub system_program: Program<'info, System>,
 }
 
@@ -30,34 +52,14 @@ pub struct SetReferer<'info> {
 pub struct StartSaleRound<'info> {
     #[account(mut, seeds = [b"ido"], bump = ido.bump)]
     pub ido: Account<'info, Ido>,
-    #[account(mut, address = ido.authority)]
+    #[account(address = ido.authority)]
     pub ido_authority: Signer<'info>,
+    pub acdm_mint_authority: Signer<'info>,
     #[account(mut, address = ido.acdm_mint, mint::authority = acdm_mint_authority)]
     pub acdm_mint: Account<'info, Mint>,
-    pub acdm_mint_authority: Signer<'info>,
-    #[account(
-        init_if_needed,
-        payer = ido_authority,
-        seeds = [b"ido_acdm"],
-        bump,
-        token::authority = ido,
-        token::mint = acdm_mint,
-    )]
+    #[account(mut, seeds = [b"ido_acdm"], bump, token::authority = ido, token::mint = acdm_mint)]
     pub ido_acdm: Account<'info, TokenAccount>,
-    #[account(address = ido.usdc_mint)]
-    pub usdc_mint: Account<'info, Mint>,
-    #[account(
-        init_if_needed,
-        payer = ido_authority,
-        seeds = [b"ido_usdc"],
-        bump,
-        token::authority = ido,
-        token::mint = usdc_mint,
-    )]
-    pub ido_usdc: Account<'info, TokenAccount>,
-    pub rent: Sysvar<'info, Rent>,
     pub token_program: Program<'info, Token>,
-    pub system_program: Program<'info, System>,
 }
 
 #[derive(Accounts)]

@@ -73,6 +73,8 @@ describe("ido", () => {
   });
 
   let ido: PublicKey;
+  let idoAcdm: PublicKey;
+  let idoUsdc: PublicKey;
 
   it("initializes", async () => {
     [ido] = await PublicKey
@@ -81,10 +83,29 @@ describe("ido", () => {
         idoProgram.programId,
       );
 
-    await idoProgram.methods.initialize(acdmMint, usdcMint, new BN(2))
+    [idoAcdm] = await PublicKey.findProgramAddress(
+      [
+        Buffer.from("ido_acdm"),
+      ],
+      idoProgram.programId,
+    );
+
+    [idoUsdc] = await PublicKey.findProgramAddress(
+      [
+        Buffer.from("ido_usdc"),
+      ],
+      idoProgram.programId,
+    );
+
+    await idoProgram.methods.initialize(new BN(2))
       .accounts({
         ido,
         idoAuthority: idoAuthority.publicKey,
+        acdmMint,
+        idoAcdm,
+        usdcMint,
+        idoUsdc,
+        rent: SYSVAR_RENT_PUBKEY,
         systemProgram: SystemProgram.programId,
       }).signers([idoAuthority]).rpc();
   });
@@ -100,35 +121,14 @@ describe("ido", () => {
     await expect(endIdo()).to.be.rejected;
   });
 
-  let idoAcdm: PublicKey;
-  let idoUsdc: PublicKey;
-
   it("starts sale round", async () => {
-    [idoAcdm] = await PublicKey.findProgramAddress(
-      [
-        Buffer.from("ido_acdm"),
-      ],
-      idoProgram.programId,
-    );
-
-    [idoUsdc] = await PublicKey.findProgramAddress(
-      [
-        Buffer.from("ido_usdc"),
-      ],
-      idoProgram.programId,
-    );
-
     await idoProgram.methods.startSaleRound().accounts({
       ido,
       idoAuthority: idoAuthority.publicKey,
-      acdmMint,
       acdmMintAuthority: acdmMintAuthority.publicKey,
+      acdmMint,
       idoAcdm,
-      usdcMint,
-      idoUsdc,
-      rent: SYSVAR_RENT_PUBKEY,
       tokenProgram: TOKEN_PROGRAM_ID,
-      systemProgram: SystemProgram.programId,
     }).signers([idoAuthority, acdmMintAuthority]).rpc();
   });
 
