@@ -177,33 +177,54 @@ describe("ido", () => {
     );
   });
 
-  const setReferer = async (
-    user: Keypair,
-    referer: PublicKey,
-  ): Promise<PublicKey> => {
-    const [userReferer] = await PublicKey
+  let member: PublicKey;
+  let member2: PublicKey;
+  let member3: PublicKey;
+
+  it("registers users", async () => {
+    [member3] = await PublicKey
       .findProgramAddress(
-        [Buffer.from("referer"), user.publicKey.toBuffer()],
+        [Buffer.from("member"), user3.publicKey.toBuffer()],
         idoProgram.programId,
       );
 
-    await idoProgram.methods.setReferer(referer).accounts({
-      user: user.publicKey,
-      userReferer,
+    await idoProgram.methods.registerMember(null).accounts({
+      member: member3,
+      authority: user3.publicKey,
       systemProgram: SystemProgram.programId,
-    }).signers([user]).rpc();
+    }).signers([user3]).rpc();
 
-    return userReferer;
-  };
+    [member2] = await PublicKey
+      .findProgramAddress(
+        [Buffer.from("member"), user2.publicKey.toBuffer()],
+        idoProgram.programId,
+      );
 
-  let userReferer: PublicKey;
-  let user2Referer: PublicKey;
+    await idoProgram.methods.registerMember(user3.publicKey).accounts({
+      member: member2,
+      authority: user2.publicKey,
+      systemProgram: SystemProgram.programId,
+    }).remainingAccounts([{
+      pubkey: member3,
+      isWritable: false,
+      isSigner: false,
+    }]).signers([user2]).rpc();
 
-  it("sets user's referer to user2 and user2's referer to user3", async () => {
-    [userReferer, user2Referer] = await Promise.all([
-      setReferer(user, user2.publicKey),
-      setReferer(user2, user3.publicKey),
-    ]);
+    [member] = await PublicKey
+      .findProgramAddress(
+        [Buffer.from("member"), user.publicKey.toBuffer()],
+        idoProgram.programId,
+      );
+
+    await idoProgram.methods.registerMember(user2.publicKey).accounts({
+      member: member,
+      authority: user.publicKey,
+      systemProgram: SystemProgram.programId,
+    }).remainingAccounts([{
+      pubkey: member2,
+      isWritable: false,
+      isSigner: false,
+    }]).signers([user]).rpc();
   });
 
   it("buys ACDM", async () => {
@@ -216,7 +237,7 @@ describe("ido", () => {
       userUsdc,
       tokenProgram: TOKEN_PROGRAM_ID,
     }).remainingAccounts([{
-      pubkey: userReferer,
+      pubkey: member,
       isWritable: false,
       isSigner: false,
     }, {
@@ -224,7 +245,7 @@ describe("ido", () => {
       isWritable: true,
       isSigner: false,
     }, {
-      pubkey: user2Referer,
+      pubkey: member2,
       isWritable: false,
       isSigner: false,
     }, {
@@ -311,7 +332,7 @@ describe("ido", () => {
       sellerUsdc: userUsdc,
       tokenProgram: TOKEN_PROGRAM_ID,
     }).remainingAccounts([{
-      pubkey: userReferer,
+      pubkey: member,
       isWritable: false,
       isSigner: false,
     }, {
@@ -319,7 +340,7 @@ describe("ido", () => {
       isWritable: true,
       isSigner: false,
     }, {
-      pubkey: user2Referer,
+      pubkey: member2,
       isWritable: false,
       isSigner: false,
     }, {

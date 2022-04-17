@@ -14,6 +14,8 @@ pub enum IdoError {
     NotSaleRound,
     #[msg("This operation can only be invoked during trade round")]
     NotTradeRound,
+    #[msg("To register with referer, one's member account must be provided")]
+    RefererAccountNotProvided,
     #[msg("Invalid amount of referer accounts supplied")]
     RefererAccountsAmount,
     #[msg("Supplied account is not the PDA of user's referer")]

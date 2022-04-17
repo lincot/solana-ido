@@ -39,9 +39,26 @@ pub mod ido {
         Ok(())
     }
 
-    pub fn set_referer(ctx: Context<SetReferer>, referer: Pubkey) -> Result<()> {
-        ctx.accounts.user_referer.bump = *ctx.bumps.get("user_referer").unwrap();
-        ctx.accounts.user_referer.referer = referer;
+    pub fn register_member(ctx: Context<RegisterMember>, referer: Option<Pubkey>) -> Result<()> {
+        ctx.accounts.member.bump = *ctx.bumps.get("member").unwrap();
+        ctx.accounts.member.referer = referer;
+
+        if let Some(referer) = referer {
+            if ctx.remaining_accounts.len() == 0 {
+                return err!(IdoError::RefererAccountNotProvided);
+            }
+
+            let referer_member = Account::<Member>::try_from(&ctx.remaining_accounts[0])?;
+
+            let pda_key = Pubkey::create_program_address(
+                &[b"member", referer.as_ref(), &[referer_member.bump]],
+                &ID,
+            )
+            .map_err(|_| IdoError::RefererPda)?;
+            if referer_member.key() != pda_key {
+                return err!(IdoError::RefererPda);
+            }
+        }
 
         Ok(())
     }
@@ -102,7 +119,7 @@ pub mod ido {
         let mut usdc_amount_to_ido = acdm_amount * ido.acdm_price;
 
         if ctx.remaining_accounts.len() >= 2 {
-            let user_referer = validate_referer(
+            let referer = validate_referer(
                 &ctx.remaining_accounts[0],
                 &ctx.remaining_accounts[1],
                 ctx.accounts.user.key(),
@@ -126,7 +143,7 @@ pub mod ido {
                 validate_referer(
                     &ctx.remaining_accounts[2],
                     &ctx.remaining_accounts[3],
-                    user_referer,
+                    referer,
                 )?;
 
                 let usdc_amount_to_referer = usdc_amount_to_ido * 3 / 100; // 3%
@@ -411,25 +428,24 @@ pub mod ido {
 }
 
 fn validate_referer(
-    referer_account_info: &AccountInfo,
+    member_account_info: &AccountInfo,
     referer_usdc_account_info: &AccountInfo,
     user: Pubkey,
 ) -> Result<Pubkey> {
-    let referer_account = Account::<Referer>::try_from(referer_account_info)?;
+    let member = Account::<Member>::try_from(member_account_info)?;
     let user2_usdc = Account::<TokenAccount>::try_from(referer_usdc_account_info)?;
 
-    let pda_key =
-        Pubkey::create_program_address(&[b"referer", user.as_ref(), &[referer_account.bump]], &ID)
-            .map_err(|_| IdoError::RefererPda)?;
-    if referer_account_info.key() != pda_key {
+    let pda_key = Pubkey::create_program_address(&[b"member", user.as_ref(), &[member.bump]], &ID)
+        .map_err(|_| IdoError::RefererPda)?;
+    if member_account_info.key() != pda_key {
         return err!(IdoError::RefererPda);
     }
 
-    if user2_usdc.owner != referer_account.referer {
+    if user2_usdc.owner != member.referer.unwrap() {
         return err!(IdoError::RefererOwner);
     }
 
-    Ok(referer_account.referer)
+    Ok(member.referer.unwrap())
 }
 
 const fn sale_price_formula(prev_price: u64) -> u64 {

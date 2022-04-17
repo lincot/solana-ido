@@ -34,17 +34,17 @@ pub struct Initialize<'info> {
 }
 
 #[derive(Accounts)]
-pub struct SetReferer<'info> {
-    #[account(mut)]
-    pub user: Signer<'info>,
+pub struct RegisterMember<'info> {
     #[account(
-        init_if_needed,
-        payer = user,
-        seeds = [b"referer", user.key().as_ref()],
+        init,
+        payer = authority,
+        seeds = [b"member", authority.key().as_ref()],
         bump,
-        space = 8 + Referer::LEN,
+        space = 8 + Member::LEN,
     )]
-    pub user_referer: Account<'info, Referer>,
+    pub member: Account<'info, Member>,
+    #[account(mut)]
+    pub authority: Signer<'info>,
     pub system_program: Program<'info, System>,
 }
 

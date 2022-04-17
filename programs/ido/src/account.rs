@@ -40,10 +40,10 @@ impl Order {
 }
 
 #[account]
-pub struct Referer {
+pub struct Member {
     pub bump: u8,
-    pub referer: Pubkey,
+    pub referer: Option<Pubkey>,
 }
-impl Referer {
-    pub const LEN: usize = 1 + 32;
+impl Member {
+    pub const LEN: usize = 1 + 33;
 }
