@@ -70,11 +70,13 @@ pub struct BuyAcdm<'info> {
     pub ido_acdm: Account<'info, TokenAccount>,
     #[account(mut, seeds = [b"ido_usdc"], bump = ido.bump_usdc)]
     pub ido_usdc: Account<'info, TokenAccount>,
-    pub user: Signer<'info>,
+    pub buyer: Signer<'info>,
+    #[account(seeds = [b"member", buyer.key().as_ref()], bump = buyer_member.bump)]
+    pub buyer_member: Account<'info, Member>,
     #[account(mut)]
-    pub user_acdm: Account<'info, TokenAccount>,
+    pub buyer_acdm: Account<'info, TokenAccount>,
     #[account(mut)]
-    pub user_usdc: Account<'info, TokenAccount>,
+    pub buyer_usdc: Account<'info, TokenAccount>,
     pub token_program: Program<'info, Token>,
 }
 
@@ -145,6 +147,8 @@ pub struct RedeemOrder<'info> {
     /// CHECK:
     #[account(address = order.authority)]
     pub seller: UncheckedAccount<'info>,
+    #[account(seeds = [b"member", seller.key().as_ref()], bump = seller_member.bump)]
+    pub seller_member: Account<'info, Member>,
     #[account(mut, associated_token::authority = order.authority, associated_token::mint = usdc_mint)]
     pub seller_usdc: Account<'info, TokenAccount>,
     pub token_program: Program<'info, Token>,

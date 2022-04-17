@@ -232,21 +232,18 @@ describe("ido", () => {
       ido,
       idoAcdm,
       idoUsdc,
-      user: user.publicKey,
-      userAcdm,
-      userUsdc,
+      buyer: user.publicKey,
+      buyerMember: member,
+      buyerAcdm: userAcdm,
+      buyerUsdc: userUsdc,
       tokenProgram: TOKEN_PROGRAM_ID,
     }).remainingAccounts([{
-      pubkey: member,
+      pubkey: member2,
       isWritable: false,
       isSigner: false,
     }, {
       pubkey: user2Usdc,
       isWritable: true,
-      isSigner: false,
-    }, {
-      pubkey: member2,
-      isWritable: false,
       isSigner: false,
     }, {
       pubkey: user3Usdc,
@@ -329,19 +326,16 @@ describe("ido", () => {
       buyerAcdm: user2Acdm,
       buyerUsdc: user2Usdc,
       seller: user.publicKey,
+      sellerMember: member,
       sellerUsdc: userUsdc,
       tokenProgram: TOKEN_PROGRAM_ID,
     }).remainingAccounts([{
-      pubkey: member,
+      pubkey: member2,
       isWritable: false,
       isSigner: false,
     }, {
       pubkey: user2Usdc,
       isWritable: true,
-      isSigner: false,
-    }, {
-      pubkey: member2,
-      isWritable: false,
       isSigner: false,
     }, {
       pubkey: user3Usdc,

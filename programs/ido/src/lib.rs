@@ -45,7 +45,7 @@ pub mod ido {
 
         if let Some(referer) = referer {
             if ctx.remaining_accounts.len() == 0 {
-                return err!(IdoError::RefererAccountNotProvided);
+                return err!(IdoError::RefererMemberAccountNotProvided);
             }
 
             let referer_member = Account::<Member>::try_from(&ctx.remaining_accounts[0])?;
@@ -112,18 +112,32 @@ pub mod ido {
             IdoState::Over => return err!(IdoError::IdoIsOver),
         }
 
-        if ![0, 2, 4].contains(&ctx.remaining_accounts.len()) {
-            return err!(IdoError::RefererAccountsAmount);
-        }
-
         let mut usdc_amount_to_ido = acdm_amount * ido.acdm_price;
 
-        if ctx.remaining_accounts.len() >= 2 {
-            let referer = validate_referer(
-                &ctx.remaining_accounts[0],
-                &ctx.remaining_accounts[1],
-                ctx.accounts.user.key(),
-            )?;
+        if let Some(referer) = ctx.accounts.buyer_member.referer {
+            if ctx.remaining_accounts.len() == 0 {
+                return err!(IdoError::RefererMemberAccountNotProvided);
+            }
+
+            let referer_member = Account::<Member>::try_from(&ctx.remaining_accounts[0])?;
+
+            let pda_key = Pubkey::create_program_address(
+                &[b"member", referer.as_ref(), &[referer_member.bump]],
+                &ID,
+            )
+            .map_err(|_| IdoError::RefererPda)?;
+            if referer_member.key() != pda_key {
+                return err!(IdoError::RefererPda);
+            }
+
+            if ctx.remaining_accounts.len() < 2 {
+                return err!(IdoError::RefererTokenAccountNotProvided);
+            }
+
+            let user2_usdc = Account::<TokenAccount>::try_from(&ctx.remaining_accounts[1])?;
+            if user2_usdc.owner != referer {
+                return err!(IdoError::RefererOwner);
+            }
 
             let usdc_amount_to_referer = usdc_amount_to_ido / 20; // 5%
             usdc_amount_to_ido -= usdc_amount_to_referer;
@@ -131,20 +145,23 @@ pub mod ido {
             msg!("sending fee to first referer");
 
             let cpi_accounts = Transfer {
-                from: ctx.accounts.user_usdc.to_account_info(),
+                from: ctx.accounts.buyer_usdc.to_account_info(),
                 to: ctx.remaining_accounts[1].clone(),
-                authority: ctx.accounts.user.to_account_info(),
+                authority: ctx.accounts.buyer.to_account_info(),
             };
             let cpi_program = ctx.accounts.token_program.to_account_info();
             let cpi_ctx = CpiContext::new(cpi_program, cpi_accounts);
             token::transfer(cpi_ctx, usdc_amount_to_referer)?;
 
-            if ctx.remaining_accounts.len() >= 4 {
-                validate_referer(
-                    &ctx.remaining_accounts[2],
-                    &ctx.remaining_accounts[3],
-                    referer,
-                )?;
+            if let Some(referer2) = referer_member.referer {
+                if ctx.remaining_accounts.len() < 3 {
+                    return err!(IdoError::RefererTokenAccountNotProvided);
+                }
+
+                let user3_usdc = Account::<TokenAccount>::try_from(&ctx.remaining_accounts[2])?;
+                if user3_usdc.owner != referer2 {
+                    return err!(IdoError::RefererOwner);
+                }
 
                 let usdc_amount_to_referer = usdc_amount_to_ido * 3 / 100; // 3%
                 usdc_amount_to_ido -= usdc_amount_to_referer;
@@ -152,9 +169,9 @@ pub mod ido {
                 msg!("sending fee to second referer");
 
                 let cpi_accounts = Transfer {
-                    from: ctx.accounts.user_usdc.to_account_info(),
-                    to: ctx.remaining_accounts[3].clone(),
-                    authority: ctx.accounts.user.to_account_info(),
+                    from: ctx.accounts.buyer_usdc.to_account_info(),
+                    to: ctx.remaining_accounts[2].clone(),
+                    authority: ctx.accounts.buyer.to_account_info(),
                 };
                 let cpi_program = ctx.accounts.token_program.to_account_info();
                 let cpi_ctx = CpiContext::new(cpi_program, cpi_accounts);
@@ -164,9 +181,9 @@ pub mod ido {
 
         if usdc_amount_to_ido != 0 {
             let cpi_accounts = Transfer {
-                from: ctx.accounts.user_usdc.to_account_info(),
+                from: ctx.accounts.buyer_usdc.to_account_info(),
                 to: ctx.accounts.ido_usdc.to_account_info(),
-                authority: ctx.accounts.user.to_account_info(),
+                authority: ctx.accounts.buyer.to_account_info(),
             };
             let cpi_program = ctx.accounts.token_program.to_account_info();
             let cpi_ctx = CpiContext::new(cpi_program, cpi_accounts);
@@ -177,7 +194,7 @@ pub mod ido {
         let signer = &[&seeds[..]];
         let cpi_accounts = Transfer {
             from: ctx.accounts.ido_acdm.to_account_info(),
-            to: ctx.accounts.user_acdm.to_account_info(),
+            to: ctx.accounts.buyer_acdm.to_account_info(),
             authority: ctx.accounts.ido.to_account_info(),
         };
         let cpi_program = ctx.accounts.token_program.to_account_info();
@@ -291,22 +308,36 @@ pub mod ido {
             IdoState::Over => return err!(IdoError::IdoIsOver),
         }
 
-        if ![0, 2, 4].contains(&ctx.remaining_accounts.len()) {
-            return err!(IdoError::RefererAccountsAmount);
-        }
-
         let usdc_amount_total = acdm_amount * ctx.accounts.order.price;
         ido.usdc_traded += usdc_amount_total;
 
         let mut usdc_amount_to_ido = usdc_amount_total / 20; // 5%
         let usdc_amount_so_seller = usdc_amount_total - usdc_amount_to_ido;
 
-        if ctx.remaining_accounts.len() >= 2 {
-            let seller_referer = validate_referer(
-                &ctx.remaining_accounts[0],
-                &ctx.remaining_accounts[1],
-                ctx.accounts.seller.key(),
-            )?;
+        if let Some(referer) = ctx.accounts.seller_member.referer {
+            if ctx.remaining_accounts.len() == 0 {
+                return err!(IdoError::RefererMemberAccountNotProvided);
+            }
+
+            let referer_member = Account::<Member>::try_from(&ctx.remaining_accounts[0])?;
+
+            let pda_key = Pubkey::create_program_address(
+                &[b"member", referer.as_ref(), &[referer_member.bump]],
+                &ID,
+            )
+            .map_err(|_| IdoError::RefererPda)?;
+            if referer_member.key() != pda_key {
+                return err!(IdoError::RefererPda);
+            }
+
+            if ctx.remaining_accounts.len() < 2 {
+                return err!(IdoError::RefererTokenAccountNotProvided);
+            }
+
+            let user2_usdc = Account::<TokenAccount>::try_from(&ctx.remaining_accounts[1])?;
+            if user2_usdc.owner != referer {
+                return err!(IdoError::RefererOwner);
+            }
 
             let usdc_amount_to_referer = usdc_amount_to_ido / 2; // 2.5%
             usdc_amount_to_ido -= usdc_amount_to_referer;
@@ -322,12 +353,15 @@ pub mod ido {
             let cpi_ctx = CpiContext::new(cpi_program, cpi_accounts);
             token::transfer(cpi_ctx, usdc_amount_to_referer)?;
 
-            if ctx.remaining_accounts.len() >= 4 {
-                validate_referer(
-                    &ctx.remaining_accounts[2],
-                    &ctx.remaining_accounts[3],
-                    seller_referer,
-                )?;
+            if let Some(referer2) = referer_member.referer {
+                if ctx.remaining_accounts.len() < 3 {
+                    return err!(IdoError::RefererTokenAccountNotProvided);
+                }
+
+                let user3_usdc = Account::<TokenAccount>::try_from(&ctx.remaining_accounts[2])?;
+                if user3_usdc.owner != referer2 {
+                    return err!(IdoError::RefererOwner);
+                }
 
                 let usdc_amount_to_referer = usdc_amount_to_ido; // 2.5%
                 usdc_amount_to_ido = 0;
@@ -336,7 +370,7 @@ pub mod ido {
 
                 let cpi_accounts = Transfer {
                     from: ctx.accounts.buyer_usdc.to_account_info(),
-                    to: ctx.remaining_accounts[3].clone(),
+                    to: ctx.remaining_accounts[2].clone(),
                     authority: ctx.accounts.buyer.to_account_info(),
                 };
                 let cpi_program = ctx.accounts.token_program.to_account_info();
@@ -425,27 +459,6 @@ pub mod ido {
         let cpi_ctx = CpiContext::new_with_signer(cpi_program, cpi_accounts, signer);
         token::close_account(cpi_ctx)
     }
-}
-
-fn validate_referer(
-    member_account_info: &AccountInfo,
-    referer_usdc_account_info: &AccountInfo,
-    user: Pubkey,
-) -> Result<Pubkey> {
-    let member = Account::<Member>::try_from(member_account_info)?;
-    let user2_usdc = Account::<TokenAccount>::try_from(referer_usdc_account_info)?;
-
-    let pda_key = Pubkey::create_program_address(&[b"member", user.as_ref(), &[member.bump]], &ID)
-        .map_err(|_| IdoError::RefererPda)?;
-    if member_account_info.key() != pda_key {
-        return err!(IdoError::RefererPda);
-    }
-
-    if user2_usdc.owner != member.referer.unwrap() {
-        return err!(IdoError::RefererOwner);
-    }
-
-    Ok(member.referer.unwrap())
 }
 
 const fn sale_price_formula(prev_price: u64) -> u64 {
