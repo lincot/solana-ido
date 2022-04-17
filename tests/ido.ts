@@ -240,13 +240,13 @@ describe("ido", () => {
     expect(userUsdcAccount.amount).to.eql(BigInt(50_000_000));
 
     const user2UsdcAccount = await getAccount(connection, user2Usdc);
-    expect(user2UsdcAccount.amount).to.eql(BigInt(101_250_000));
+    expect(user2UsdcAccount.amount).to.eql(BigInt(102_500_000));
 
     const user3UsdcAccount = await getAccount(connection, user3Usdc);
-    expect(user3UsdcAccount.amount).to.eql(BigInt(1_250_000));
+    expect(user3UsdcAccount.amount).to.eql(BigInt(1_425_000));
 
     const idoUsdcAccount = await getAccount(connection, idoUsdc);
-    expect(idoUsdcAccount.amount).to.eql(BigInt(47_500_000));
+    expect(idoUsdcAccount.amount).to.eql(BigInt(46_075_000));
   });
 
   it("starts trade round", async () => {
@@ -367,7 +367,7 @@ describe("ido", () => {
       connection,
       idoAuthorityUsdc,
     );
-    expect(idoAuthorityUsdcAccount.amount).to.eql(BigInt(47_500_000));
+    expect(idoAuthorityUsdcAccount.amount).to.eql(BigInt(46_075_000));
   });
 
   it("ends ido", async () => {

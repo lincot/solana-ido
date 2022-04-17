@@ -95,12 +95,11 @@ pub mod ido {
             IdoState::Over => return err!(IdoError::IdoIsOver),
         }
 
-        let mut usdc_amount_to_ido = acdm_amount * ido.acdm_price;
-        let usdc_amount_to_referer = usdc_amount_to_ido / 40; // 2.5%
-
         if ![0, 2, 4].contains(&ctx.remaining_accounts.len()) {
             return err!(IdoError::RefererAccountsAmount);
         }
+
+        let mut usdc_amount_to_ido = acdm_amount * ido.acdm_price;
 
         if ctx.remaining_accounts.len() >= 2 {
             let user_referer = validate_referer(
@@ -109,6 +108,7 @@ pub mod ido {
                 ctx.accounts.user.key(),
             )?;
 
+            let usdc_amount_to_referer = usdc_amount_to_ido / 20; // 5%
             usdc_amount_to_ido -= usdc_amount_to_referer;
 
             msg!("sending fee to first referer");
@@ -129,6 +129,7 @@ pub mod ido {
                     user_referer,
                 )?;
 
+                let usdc_amount_to_referer = usdc_amount_to_ido * 3 / 100; // 3%
                 usdc_amount_to_ido -= usdc_amount_to_referer;
 
                 msg!("sending fee to second referer");
@@ -273,6 +274,10 @@ pub mod ido {
             IdoState::Over => return err!(IdoError::IdoIsOver),
         }
 
+        if ![0, 2, 4].contains(&ctx.remaining_accounts.len()) {
+            return err!(IdoError::RefererAccountsAmount);
+        }
+
         let usdc_amount_total = acdm_amount * ctx.accounts.order.price;
         ido.usdc_traded += usdc_amount_total;
 
@@ -286,7 +291,7 @@ pub mod ido {
                 ctx.accounts.seller.key(),
             )?;
 
-            let usdc_amount_to_referer = usdc_amount_to_ido * 3 / 5; // 3%
+            let usdc_amount_to_referer = usdc_amount_to_ido / 2; // 2.5%
             usdc_amount_to_ido -= usdc_amount_to_referer;
 
             msg!("sending fee to first referer");
@@ -307,7 +312,7 @@ pub mod ido {
                     seller_referer,
                 )?;
 
-                let usdc_amount_to_referer = usdc_amount_to_ido; // 2%
+                let usdc_amount_to_referer = usdc_amount_to_ido; // 2.5%
                 usdc_amount_to_ido = 0;
 
                 msg!("sending fee to second referer");
