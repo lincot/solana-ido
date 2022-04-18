@@ -2,6 +2,8 @@ use anchor_lang::prelude::*;
 
 #[error_code]
 pub enum IdoError {
+    #[msg("Argument too big or too small")]
+    OverflowingArgument,
     #[msg("Invalid round time")]
     RoundTimeInvalid,
     #[msg("Sale round cannot be ended yet")]

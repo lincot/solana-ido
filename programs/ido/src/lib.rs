@@ -105,9 +105,18 @@ pub mod ido {
             IdoState::Over => return err!(IdoError::IdoIsOver),
         }
 
-        let usdc_amount_to_ido = acdm_amount * ido.acdm_price; // 100%
+        if acdm_amount == 0 {
+            return err!(IdoError::OverflowingArgument);
+        }
+
+        let usdc_amount_to_ido = acdm_amount
+            .checked_mul(ido.acdm_price)
+            .ok_or(IdoError::OverflowingArgument)?; // 100%
         let usdc_amount_to_referer = usdc_amount_to_ido / 20; // 5%
-        let usdc_amount_to_referer2 = usdc_amount_to_ido * 3 / 100; // 3%
+        let usdc_amount_to_referer2 = usdc_amount_to_ido
+            .checked_mul(3)
+            .ok_or(IdoError::OverflowingArgument)?
+            / 100; // 3%
 
         send_to_referers_and_ido(
             usdc_amount_to_ido,
@@ -241,7 +250,13 @@ pub mod ido {
             IdoState::Over => return err!(IdoError::IdoIsOver),
         }
 
-        let usdc_amount_total = acdm_amount * ctx.accounts.order.price;
+        if acdm_amount == 0 {
+            return err!(IdoError::OverflowingArgument);
+        }
+
+        let usdc_amount_total = acdm_amount
+            .checked_mul(ctx.accounts.order.price)
+            .ok_or(IdoError::OverflowingArgument)?;
         ido.usdc_traded += usdc_amount_total;
 
         let usdc_amount_to_ido = usdc_amount_total / 20; // 5%

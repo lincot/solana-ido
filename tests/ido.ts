@@ -136,6 +136,7 @@ describe("ido", () => {
   let userUsdc: PublicKey;
   let user2Acdm: PublicKey;
   let user2Usdc: PublicKey;
+  let user3Acdm: PublicKey;
   let user3Usdc: PublicKey;
   let idoAuthorityUsdc: PublicKey;
 
@@ -148,15 +149,23 @@ describe("ido", () => {
     )).address;
 
   it("sets users' ATAs", async () => {
-    [userAcdm, userUsdc, user2Acdm, user2Usdc, user3Usdc, idoAuthorityUsdc] =
-      await Promise.all([
-        getAta(user, acdmMint),
-        getAta(user, usdcMint),
-        getAta(user2, acdmMint),
-        getAta(user2, usdcMint),
-        getAta(user3, usdcMint),
-        getAta(idoAuthority, usdcMint),
-      ]);
+    [
+      userAcdm,
+      userUsdc,
+      user2Acdm,
+      user2Usdc,
+      user3Acdm,
+      user3Usdc,
+      idoAuthorityUsdc,
+    ] = await Promise.all([
+      getAta(user, acdmMint),
+      getAta(user, usdcMint),
+      getAta(user2, acdmMint),
+      getAta(user2, usdcMint),
+      getAta(user3, acdmMint),
+      getAta(user3, usdcMint),
+      getAta(idoAuthority, usdcMint),
+    ]);
 
     await mintTo(
       connection,
@@ -265,6 +274,34 @@ describe("ido", () => {
 
     const idoUsdcAccount = await getAccount(connection, idoUsdc);
     expect(idoUsdcAccount.amount).to.eql(BigInt(46_000_000));
+  });
+
+  it("fails to buy too much or 0", async () => {
+    await expect(
+      idoProgram.methods.buyAcdm(new BN(9_000_000_000_000_000)).accounts({
+        ido,
+        idoAcdm,
+        idoUsdc,
+        buyer: user3.publicKey,
+        buyerMember: member3,
+        buyerAcdm: user3Acdm,
+        buyerUsdc: user3Usdc,
+        tokenProgram: TOKEN_PROGRAM_ID,
+      }).signers([user3]).rpc(),
+    ).to.be.rejected;
+
+    await expect(
+      idoProgram.methods.buyAcdm(new BN(0)).accounts({
+        ido,
+        idoAcdm,
+        idoUsdc,
+        buyer: user3.publicKey,
+        buyerMember: member3,
+        buyerAcdm: user3Acdm,
+        buyerUsdc: user3Usdc,
+        tokenProgram: TOKEN_PROGRAM_ID,
+      }).signers([user3]).rpc(),
+    ).to.be.rejected;
   });
 
   it("starts trade round", async () => {
