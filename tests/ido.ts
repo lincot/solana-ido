@@ -368,7 +368,6 @@ describe("ido", () => {
     await expect(
       idoProgram.methods.redeemOrder(orderId, new BN(40)).accounts({
         ido,
-        usdcMint,
         idoUsdc,
         order,
         orderAcdm,
@@ -386,7 +385,6 @@ describe("ido", () => {
   it("redeems order partly", async () => {
     await idoProgram.methods.redeemOrder(orderId, new BN(40)).accounts({
       ido,
-      usdcMint,
       idoUsdc,
       order,
       orderAcdm,
