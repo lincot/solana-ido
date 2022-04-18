@@ -257,7 +257,10 @@ pub mod ido {
         let usdc_amount_total = acdm_amount
             .checked_mul(ctx.accounts.order.price)
             .ok_or(IdoError::OverflowingArgument)?;
-        ido.usdc_traded += usdc_amount_total;
+        ido.usdc_traded = ido
+            .usdc_traded
+            .checked_add(usdc_amount_total)
+            .ok_or(IdoError::OverflowingArgument)?;
 
         let usdc_amount_to_ido = usdc_amount_total / 20; // 5%
         let usdc_amount_to_referer = usdc_amount_to_ido / 2; // 2.5%
