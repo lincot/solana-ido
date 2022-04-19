@@ -23,8 +23,8 @@ const fn sale_price_formula(prev_price: u64) -> u64 {
 pub mod ido {
     use super::*;
 
-    pub fn initialize(ctx: Context<Initialize>, round_time: i64) -> Result<()> {
-        let ts = Clock::get()?.unix_timestamp;
+    pub fn initialize(ctx: Context<Initialize>, round_time: u32) -> Result<()> {
+        let ts = Clock::get()?.unix_timestamp as u32;
 
         let ido = &mut ctx.accounts.ido;
 
@@ -36,9 +36,6 @@ pub mod ido {
         ido.acdm_mint = ctx.accounts.acdm_mint.key();
         ido.usdc_mint = ctx.accounts.usdc_mint.key();
         ido.usdc_traded = 1_000_000_000;
-        if round_time < 0 {
-            return err!(IdoError::RoundTimeInvalid);
-        }
         ido.round_time = round_time;
         ido.current_state_start_ts = ts;
 
@@ -57,7 +54,7 @@ pub mod ido {
     }
 
     pub fn start_sale_round(ctx: Context<StartSaleRound>) -> Result<()> {
-        let ts = Clock::get()?.unix_timestamp;
+        let ts = Clock::get()?.unix_timestamp as u32;
 
         let ido = &mut ctx.accounts.ido;
 
@@ -143,7 +140,7 @@ pub mod ido {
     }
 
     pub fn start_trade_round(ctx: Context<StartTradeRound>) -> Result<()> {
-        let ts = Clock::get()?.unix_timestamp;
+        let ts = Clock::get()?.unix_timestamp as u32;
 
         let ido = &mut ctx.accounts.ido;
 
@@ -183,7 +180,7 @@ pub mod ido {
     }
 
     pub fn end_ido(ctx: Context<EndIdo>) -> Result<()> {
-        let ts = Clock::get()?.unix_timestamp;
+        let ts = Clock::get()?.unix_timestamp as u32;
 
         let ido = &mut ctx.accounts.ido;
 

@@ -20,8 +20,8 @@ pub struct Ido {
     pub acdm_price: u64,
     pub usdc_traded: u64,
     pub orders: u64,
-    pub round_time: i64,
-    pub current_state_start_ts: i64,
+    pub round_time: u32,
+    pub current_state_start_ts: u32,
     pub sale_rounds_started: u8,
 }
 impl Ido {
