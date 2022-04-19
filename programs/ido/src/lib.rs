@@ -26,18 +26,16 @@ pub mod ido {
     pub fn initialize(ctx: Context<Initialize>, round_time: u32) -> Result<()> {
         let ts = Clock::get()?.unix_timestamp as u32;
 
-        let ido = &mut ctx.accounts.ido;
-
-        ido.bump = *ctx.bumps.get("ido").unwrap();
-        ido.bump_acdm = *ctx.bumps.get("ido_acdm").unwrap();
-        ido.bump_usdc = *ctx.bumps.get("ido_usdc").unwrap();
-        ido.authority = ctx.accounts.ido_authority.key();
-        ido.state = IdoState::NotStarted;
-        ido.acdm_mint = ctx.accounts.acdm_mint.key();
-        ido.usdc_mint = ctx.accounts.usdc_mint.key();
-        ido.usdc_traded = 1_000_000_000;
-        ido.round_time = round_time;
-        ido.current_state_start_ts = ts;
+        ctx.accounts.ido.bump = *ctx.bumps.get("ido").unwrap();
+        ctx.accounts.ido.bump_acdm = *ctx.bumps.get("ido_acdm").unwrap();
+        ctx.accounts.ido.bump_usdc = *ctx.bumps.get("ido_usdc").unwrap();
+        ctx.accounts.ido.authority = ctx.accounts.ido_authority.key();
+        ctx.accounts.ido.state = IdoState::NotStarted;
+        ctx.accounts.ido.acdm_mint = ctx.accounts.acdm_mint.key();
+        ctx.accounts.ido.usdc_mint = ctx.accounts.usdc_mint.key();
+        ctx.accounts.ido.usdc_traded = 1_000_000_000;
+        ctx.accounts.ido.round_time = round_time;
+        ctx.accounts.ido.current_state_start_ts = ts;
 
         Ok(())
     }
@@ -56,46 +54,35 @@ pub mod ido {
     pub fn start_sale_round(ctx: Context<StartSaleRound>) -> Result<()> {
         let ts = Clock::get()?.unix_timestamp as u32;
 
-        let ido = &mut ctx.accounts.ido;
-
-        match ido.state {
+        match ctx.accounts.ido.state {
             IdoState::NotStarted => {}
             IdoState::SaleRound => return err!(IdoError::RoundAlreadyStarted),
             IdoState::TradeRound => {
-                if ts - ido.current_state_start_ts < ido.round_time {
+                if ts - ctx.accounts.ido.current_state_start_ts < ctx.accounts.ido.round_time {
                     return err!(IdoError::CannotEndTradeRound);
                 }
             }
             IdoState::Over => return err!(IdoError::IdoIsOver),
         }
 
-        ido.state = IdoState::SaleRound;
-        ido.current_state_start_ts = ts;
-        ido.acdm_price = if ido.sale_rounds_started == 0 {
+        ctx.accounts.ido.state = IdoState::SaleRound;
+        ctx.accounts.ido.current_state_start_ts = ts;
+        ctx.accounts.ido.acdm_price = if ctx.accounts.ido.sale_rounds_started == 0 {
             INITIAL_PRICE
         } else {
-            sale_price_formula(ido.acdm_price)
+            sale_price_formula(ctx.accounts.ido.acdm_price)
         };
-        ido.sale_rounds_started += 1;
+        ctx.accounts.ido.sale_rounds_started += 1;
 
-        let amount_to_mint = ido.usdc_traded / ido.acdm_price;
-        let cpi_accounts = MintTo {
-            mint: ctx.accounts.acdm_mint.to_account_info(),
-            to: ctx.accounts.ido_acdm.to_account_info(),
-            authority: ctx.accounts.acdm_mint_authority.to_account_info(),
-        };
-        let cpi_program = ctx.accounts.token_program.to_account_info();
-        let cpi_ctx = CpiContext::new(cpi_program, cpi_accounts);
-        token::mint_to(cpi_ctx, amount_to_mint)
+        let amount_to_mint = ctx.accounts.ido.usdc_traded / ctx.accounts.ido.acdm_price;
+        ctx.accounts.mint_acdm(amount_to_mint)
     }
 
     pub fn buy_acdm<'a, 'b, 'info>(
         ctx: Context<'a, 'b, 'b, 'info, BuyAcdm<'info>>,
         acdm_amount: u64,
     ) -> Result<()> {
-        let ido = &mut ctx.accounts.ido;
-
-        match ido.state {
+        match ctx.accounts.ido.state {
             IdoState::NotStarted => return err!(IdoError::NotSaleRound),
             IdoState::SaleRound => {}
             IdoState::TradeRound => return err!(IdoError::NotSaleRound),
@@ -107,7 +94,7 @@ pub mod ido {
         }
 
         let usdc_amount_to_ido = acdm_amount
-            .checked_mul(ido.acdm_price)
+            .checked_mul(ctx.accounts.ido.acdm_price)
             .ok_or(IdoError::OverflowingArgument)?; // 100%
         let usdc_amount_to_referer = usdc_amount_to_ido / 20; // 5%
         let usdc_amount_to_referer2 = usdc_amount_to_ido
@@ -127,29 +114,20 @@ pub mod ido {
             ctx.remaining_accounts,
         )?;
 
-        let seeds = &[b"ido".as_ref(), &[ido.bump]];
-        let signer = &[&seeds[..]];
-        let cpi_accounts = Transfer {
-            from: ctx.accounts.ido_acdm.to_account_info(),
-            to: ctx.accounts.buyer_acdm.to_account_info(),
-            authority: ctx.accounts.ido.to_account_info(),
-        };
-        let cpi_program = ctx.accounts.token_program.to_account_info();
-        let cpi_ctx = CpiContext::new_with_signer(cpi_program, cpi_accounts, signer);
-        token::transfer(cpi_ctx, acdm_amount)
+        ctx.accounts.transfer_acdm(acdm_amount)
     }
 
     pub fn start_trade_round(ctx: Context<StartTradeRound>) -> Result<()> {
         let ts = Clock::get()?.unix_timestamp as u32;
 
-        let ido = &mut ctx.accounts.ido;
-
-        let sold_all = match ido.state {
+        let sold_all = match ctx.accounts.ido.state {
             IdoState::NotStarted => return err!(IdoError::NotSaleRound),
             IdoState::SaleRound => {
                 let sold_all = ctx.accounts.ido_acdm.amount == 0;
 
-                if !sold_all && (ts - ido.current_state_start_ts < ido.round_time) {
+                if !sold_all
+                    && (ts - ctx.accounts.ido.current_state_start_ts < ctx.accounts.ido.round_time)
+                {
                     return err!(IdoError::CannotEndSaleRound);
                 }
 
@@ -159,76 +137,37 @@ pub mod ido {
             IdoState::Over => return err!(IdoError::IdoIsOver),
         };
 
-        ido.state = IdoState::TradeRound;
-        ido.current_state_start_ts = ts;
-        ido.usdc_traded = 0;
+        ctx.accounts.ido.state = IdoState::TradeRound;
+        ctx.accounts.ido.current_state_start_ts = ts;
+        ctx.accounts.ido.usdc_traded = 0;
 
         if !sold_all {
-            let seeds = &[b"ido".as_ref(), &[ido.bump]];
-            let signer = &[&seeds[..]];
-            let cpi_accounts = Burn {
-                mint: ctx.accounts.acdm_mint.to_account_info(),
-                from: ctx.accounts.ido_acdm.to_account_info(),
-                authority: ctx.accounts.ido.to_account_info(),
-            };
-            let cpi_program = ctx.accounts.token_program.to_account_info();
-            let cpi_ctx = CpiContext::new_with_signer(cpi_program, cpi_accounts, signer);
-            token::burn(cpi_ctx, ctx.accounts.ido_acdm.amount)?;
+            ctx.accounts.burn_acdm()?;
         }
-
-        Ok(())
-    }
-
-    pub fn end_ido(ctx: Context<EndIdo>) -> Result<()> {
-        let ts = Clock::get()?.unix_timestamp as u32;
-
-        let ido = &mut ctx.accounts.ido;
-
-        match ido.state {
-            IdoState::NotStarted => return err!(IdoError::NotTradeRound),
-            IdoState::SaleRound => return err!(IdoError::NotTradeRound),
-            IdoState::TradeRound => {
-                if ts - ido.current_state_start_ts < ido.round_time {
-                    return err!(IdoError::CannotEndTradeRound);
-                }
-            }
-            IdoState::Over => return err!(IdoError::IdoIsOver),
-        }
-
-        ido.state = IdoState::Over;
-        ido.current_state_start_ts = ts;
 
         Ok(())
     }
 
     pub fn add_order(ctx: Context<AddOrder>, acdm_amount: u64, acdm_price: u64) -> Result<()> {
-        let ido = &mut ctx.accounts.ido;
-
-        match ido.state {
+        match ctx.accounts.ido.state {
             IdoState::NotStarted => return err!(IdoError::NotTradeRound),
             IdoState::SaleRound => return err!(IdoError::NotTradeRound),
             IdoState::TradeRound => {}
             IdoState::Over => return err!(IdoError::IdoIsOver),
         }
 
-        let cpi_accounts = Transfer {
-            from: ctx.accounts.seller_acdm.to_account_info(),
-            to: ctx.accounts.order_acdm.to_account_info(),
-            authority: ctx.accounts.seller.to_account_info(),
-        };
-        let cpi_program = ctx.accounts.token_program.to_account_info();
-        let cpi_ctx = CpiContext::new(cpi_program, cpi_accounts);
-        token::transfer(cpi_ctx, acdm_amount)?;
+        ctx.accounts.transfer_acdm(acdm_amount)?;
 
-        let order = &mut ctx.accounts.order;
-        order.bump = *ctx.bumps.get("order").unwrap();
-        order.bump_acdm = *ctx.bumps.get("order_acdm").unwrap();
-        order.authority = ctx.accounts.seller.key();
-        order.price = acdm_price;
+        ctx.accounts.order.bump = *ctx.bumps.get("order").unwrap();
+        ctx.accounts.order.bump_acdm = *ctx.bumps.get("order_acdm").unwrap();
+        ctx.accounts.order.authority = ctx.accounts.seller.key();
+        ctx.accounts.order.price = acdm_price;
 
-        ido.orders += 1;
+        ctx.accounts.ido.orders += 1;
 
-        emit!(OrderEvent { id: ido.orders - 1 });
+        emit!(OrderEvent {
+            id: ctx.accounts.ido.orders - 1
+        });
 
         Ok(())
     }
@@ -238,9 +177,7 @@ pub mod ido {
         id: u64,
         acdm_amount: u64,
     ) -> Result<()> {
-        let ido = &mut ctx.accounts.ido;
-
-        match ido.state {
+        match ctx.accounts.ido.state {
             IdoState::NotStarted => return err!(IdoError::NotTradeRound),
             IdoState::SaleRound => return err!(IdoError::NotTradeRound),
             IdoState::TradeRound => {}
@@ -254,7 +191,9 @@ pub mod ido {
         let usdc_amount_total = acdm_amount
             .checked_mul(ctx.accounts.order.price)
             .ok_or(IdoError::OverflowingArgument)?;
-        ido.usdc_traded = ido
+        ctx.accounts.ido.usdc_traded = ctx
+            .accounts
+            .ido
             .usdc_traded
             .checked_add(usdc_amount_total)
             .ok_or(IdoError::OverflowingArgument)?;
@@ -276,73 +215,39 @@ pub mod ido {
             ctx.remaining_accounts,
         )?;
 
-        let cpi_accounts = Transfer {
-            from: ctx.accounts.buyer_usdc.to_account_info(),
-            to: ctx.accounts.seller_usdc.to_account_info(),
-            authority: ctx.accounts.buyer.to_account_info(),
-        };
-        let cpi_program = ctx.accounts.token_program.to_account_info();
-        let cpi_ctx = CpiContext::new(cpi_program, cpi_accounts);
-        token::transfer(cpi_ctx, usdc_amount_so_seller)?;
+        ctx.accounts
+            .transfer_usdc_to_seller(usdc_amount_so_seller)?;
 
-        let seeds = &[
-            b"order".as_ref(),
-            &id.to_le_bytes(),
-            &[ctx.accounts.order.bump],
-        ];
-        let signer = &[&seeds[..]];
-        let cpi_accounts = Transfer {
-            from: ctx.accounts.order_acdm.to_account_info(),
-            to: ctx.accounts.buyer_acdm.to_account_info(),
-            authority: ctx.accounts.order.to_account_info(),
-        };
-        let cpi_program = ctx.accounts.token_program.to_account_info();
-        let cpi_ctx = CpiContext::new_with_signer(cpi_program, cpi_accounts, signer);
-        token::transfer(cpi_ctx, acdm_amount)
-    }
-
-    pub fn withdraw_ido_usdc(ctx: Context<WithdrawIdoUsdc>) -> Result<()> {
-        let seeds = &[b"ido".as_ref(), &[ctx.accounts.ido.bump]];
-        let signer = &[&seeds[..]];
-        let cpi_accounts = Transfer {
-            from: ctx.accounts.ido_usdc.to_account_info(),
-            to: ctx.accounts.to.to_account_info(),
-            authority: ctx.accounts.ido.to_account_info(),
-        };
-        let cpi_program = ctx.accounts.token_program.to_account_info();
-        let cpi_ctx = CpiContext::new_with_signer(cpi_program, cpi_accounts, signer);
-        token::transfer(cpi_ctx, ctx.accounts.ido_usdc.amount)
+        ctx.accounts.transfer_acdm_to_buyer(id, acdm_amount)
     }
 
     pub fn remove_order(ctx: Context<RemoveOrder>, id: u64) -> Result<()> {
-        let seeds = &[
-            b"order".as_ref(),
-            &id.to_le_bytes(),
-            &[ctx.accounts.order.bump],
-        ];
-        let signer = &[&seeds[..]];
+        ctx.accounts.send_leftover_to_seller(id)?;
+        ctx.accounts.close_order_acdm_account(id)
+    }
 
-        let leftover_amount = ctx.accounts.order_acdm.amount;
+    pub fn withdraw_ido_usdc(ctx: Context<WithdrawIdoUsdc>) -> Result<()> {
+        ctx.accounts.withdraw_ido_usdc()
+    }
 
-        if leftover_amount != 0 {
-            let cpi_accounts = Transfer {
-                from: ctx.accounts.order_acdm.to_account_info(),
-                to: ctx.accounts.seller_acdm.to_account_info(),
-                authority: ctx.accounts.order.to_account_info(),
-            };
-            let cpi_program = ctx.accounts.token_program.to_account_info();
-            let cpi_ctx = CpiContext::new_with_signer(cpi_program, cpi_accounts, signer);
-            token::transfer(cpi_ctx, leftover_amount)?;
+    pub fn end_ido(ctx: Context<EndIdo>) -> Result<()> {
+        let ts = Clock::get()?.unix_timestamp as u32;
+
+        match ctx.accounts.ido.state {
+            IdoState::NotStarted => return err!(IdoError::NotTradeRound),
+            IdoState::SaleRound => return err!(IdoError::NotTradeRound),
+            IdoState::TradeRound => {
+                if ts - ctx.accounts.ido.current_state_start_ts < ctx.accounts.ido.round_time {
+                    return err!(IdoError::CannotEndTradeRound);
+                }
+            }
+            IdoState::Over => return err!(IdoError::IdoIsOver),
         }
 
-        let cpi_accounts = CloseAccount {
-            account: ctx.accounts.order_acdm.to_account_info(),
-            destination: ctx.accounts.seller.to_account_info(),
-            authority: ctx.accounts.order.to_account_info(),
-        };
-        let cpi_program = ctx.accounts.token_program.to_account_info();
-        let cpi_ctx = CpiContext::new_with_signer(cpi_program, cpi_accounts, signer);
-        token::close_account(cpi_ctx)
+        ctx.accounts.ido.state = IdoState::Over;
+        ctx.accounts.ido.current_state_start_ts = ts;
+
+        Ok(())
     }
 }
 
@@ -428,16 +333,146 @@ fn send_to_referers_and_ido<'info>(
         }
     }
 
-    if usdc_amount_to_ido != 0 {
-        let cpi_accounts = Transfer {
-            from: buyer_usdc.to_account_info(),
-            to: ido_usdc.to_account_info(),
-            authority: buyer.to_account_info(),
+    if usdc_amount_to_ido == 0 {
+        return Ok(());
+    }
+    let cpi_accounts = Transfer {
+        from: buyer_usdc.to_account_info(),
+        to: ido_usdc.to_account_info(),
+        authority: buyer.to_account_info(),
+    };
+    let cpi_program = token_program.to_account_info();
+    let cpi_ctx = CpiContext::new(cpi_program, cpi_accounts);
+    token::transfer(cpi_ctx, usdc_amount_to_ido)
+}
+
+impl<'info> StartSaleRound<'info> {
+    fn mint_acdm(&self, amount: u64) -> Result<()> {
+        let cpi_accounts = MintTo {
+            mint: self.acdm_mint.to_account_info(),
+            to: self.ido_acdm.to_account_info(),
+            authority: self.acdm_mint_authority.to_account_info(),
         };
-        let cpi_program = token_program.to_account_info();
+        let cpi_program = self.token_program.to_account_info();
         let cpi_ctx = CpiContext::new(cpi_program, cpi_accounts);
-        token::transfer(cpi_ctx, usdc_amount_to_ido)?;
+        token::mint_to(cpi_ctx, amount)
+    }
+}
+
+impl<'info> BuyAcdm<'info> {
+    fn transfer_acdm(&self, amount: u64) -> Result<()> {
+        let seeds = &[b"ido".as_ref(), &[self.ido.bump]];
+        let signer = &[&seeds[..]];
+        let cpi_accounts = Transfer {
+            from: self.ido_acdm.to_account_info(),
+            to: self.buyer_acdm.to_account_info(),
+            authority: self.ido.to_account_info(),
+        };
+        let cpi_program = self.token_program.to_account_info();
+        let cpi_ctx = CpiContext::new_with_signer(cpi_program, cpi_accounts, signer);
+        token::transfer(cpi_ctx, amount)
+    }
+}
+
+impl<'info> StartTradeRound<'info> {
+    fn burn_acdm(&self) -> Result<()> {
+        let seeds = &[b"ido".as_ref(), &[self.ido.bump]];
+        let signer = &[&seeds[..]];
+        let cpi_accounts = Burn {
+            mint: self.acdm_mint.to_account_info(),
+            from: self.ido_acdm.to_account_info(),
+            authority: self.ido.to_account_info(),
+        };
+        let cpi_program = self.token_program.to_account_info();
+        let cpi_ctx = CpiContext::new_with_signer(cpi_program, cpi_accounts, signer);
+        token::burn(cpi_ctx, self.ido_acdm.amount)
+    }
+}
+
+impl<'info> AddOrder<'info> {
+    fn transfer_acdm(&self, amount: u64) -> Result<()> {
+        let cpi_accounts = Transfer {
+            from: self.seller_acdm.to_account_info(),
+            to: self.order_acdm.to_account_info(),
+            authority: self.seller.to_account_info(),
+        };
+        let cpi_program = self.token_program.to_account_info();
+        let cpi_ctx = CpiContext::new(cpi_program, cpi_accounts);
+        token::transfer(cpi_ctx, amount)
+    }
+}
+
+impl<'info> RedeemOrder<'info> {
+    fn transfer_usdc_to_seller(&self, amount: u64) -> Result<()> {
+        let cpi_accounts = Transfer {
+            from: self.buyer_usdc.to_account_info(),
+            to: self.seller_usdc.to_account_info(),
+            authority: self.buyer.to_account_info(),
+        };
+        let cpi_program = self.token_program.to_account_info();
+        let cpi_ctx = CpiContext::new(cpi_program, cpi_accounts);
+        token::transfer(cpi_ctx, amount)
     }
 
-    Ok(())
+    fn transfer_acdm_to_buyer(&self, id: u64, amount: u64) -> Result<()> {
+        let seeds = &[b"order".as_ref(), &id.to_le_bytes(), &[self.order.bump]];
+        let signer = &[&seeds[..]];
+        let cpi_accounts = Transfer {
+            from: self.order_acdm.to_account_info(),
+            to: self.buyer_acdm.to_account_info(),
+            authority: self.order.to_account_info(),
+        };
+        let cpi_program = self.token_program.to_account_info();
+        let cpi_ctx = CpiContext::new_with_signer(cpi_program, cpi_accounts, signer);
+        token::transfer(cpi_ctx, amount)
+    }
+}
+
+impl<'info> WithdrawIdoUsdc<'info> {
+    fn withdraw_ido_usdc(&self) -> Result<()> {
+        let seeds = &[b"ido".as_ref(), &[self.ido.bump]];
+        let signer = &[&seeds[..]];
+        let cpi_accounts = Transfer {
+            from: self.ido_usdc.to_account_info(),
+            to: self.to.to_account_info(),
+            authority: self.ido.to_account_info(),
+        };
+        let cpi_program = self.token_program.to_account_info();
+        let cpi_ctx = CpiContext::new_with_signer(cpi_program, cpi_accounts, signer);
+        token::transfer(cpi_ctx, self.ido_usdc.amount)
+    }
+}
+
+impl<'info> RemoveOrder<'info> {
+    fn send_leftover_to_seller(&self, id: u64) -> Result<()> {
+        let amount = self.order_acdm.amount;
+
+        if amount == 0 {
+            return Ok(());
+        }
+
+        let seeds = &[b"order".as_ref(), &id.to_le_bytes(), &[self.order.bump]];
+        let signer = &[&seeds[..]];
+        let cpi_accounts = Transfer {
+            from: self.order_acdm.to_account_info(),
+            to: self.seller_acdm.to_account_info(),
+            authority: self.order.to_account_info(),
+        };
+        let cpi_program = self.token_program.to_account_info();
+        let cpi_ctx = CpiContext::new_with_signer(cpi_program, cpi_accounts, signer);
+        token::transfer(cpi_ctx, amount)
+    }
+
+    fn close_order_acdm_account(&self, id: u64) -> Result<()> {
+        let seeds = &[b"order".as_ref(), &id.to_le_bytes(), &[self.order.bump]];
+        let signer = &[&seeds[..]];
+        let cpi_accounts = CloseAccount {
+            account: self.order_acdm.to_account_info(),
+            destination: self.seller.to_account_info(),
+            authority: self.order.to_account_info(),
+        };
+        let cpi_program = self.token_program.to_account_info();
+        let cpi_ctx = CpiContext::new_with_signer(cpi_program, cpi_accounts, signer);
+        token::close_account(cpi_ctx)
+    }
 }
