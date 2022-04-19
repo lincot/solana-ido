@@ -215,9 +215,9 @@ pub mod ido {
         }
 
         let cpi_accounts = Transfer {
-            from: ctx.accounts.user_acdm.to_account_info(),
+            from: ctx.accounts.seller_acdm.to_account_info(),
             to: ctx.accounts.order_acdm.to_account_info(),
-            authority: ctx.accounts.user.to_account_info(),
+            authority: ctx.accounts.seller.to_account_info(),
         };
         let cpi_program = ctx.accounts.token_program.to_account_info();
         let cpi_ctx = CpiContext::new(cpi_program, cpi_accounts);
@@ -226,7 +226,7 @@ pub mod ido {
         let order = &mut ctx.accounts.order;
         order.bump = *ctx.bumps.get("order").unwrap();
         order.bump_acdm = *ctx.bumps.get("order_acdm").unwrap();
-        order.authority = ctx.accounts.user.key();
+        order.authority = ctx.accounts.seller.key();
         order.price = acdm_price;
 
         ido.orders += 1;
@@ -294,7 +294,6 @@ pub mod ido {
             &[ctx.accounts.order.bump],
         ];
         let signer = &[&seeds[..]];
-
         let cpi_accounts = Transfer {
             from: ctx.accounts.order_acdm.to_account_info(),
             to: ctx.accounts.buyer_acdm.to_account_info(),
@@ -331,7 +330,7 @@ pub mod ido {
         if leftover_amount != 0 {
             let cpi_accounts = Transfer {
                 from: ctx.accounts.order_acdm.to_account_info(),
-                to: ctx.accounts.user_acdm.to_account_info(),
+                to: ctx.accounts.seller_acdm.to_account_info(),
                 authority: ctx.accounts.order.to_account_info(),
             };
             let cpi_program = ctx.accounts.token_program.to_account_info();
@@ -341,7 +340,7 @@ pub mod ido {
 
         let cpi_accounts = CloseAccount {
             account: ctx.accounts.order_acdm.to_account_info(),
-            destination: ctx.accounts.user.to_account_info(),
+            destination: ctx.accounts.seller.to_account_info(),
             authority: ctx.accounts.order.to_account_info(),
         };
         let cpi_program = ctx.accounts.token_program.to_account_info();

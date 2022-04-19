@@ -99,7 +99,7 @@ pub struct AddOrder<'info> {
     pub ido: Account<'info, Ido>,
     #[account(
         init,
-        payer = user,
+        payer = seller,
         seeds = [b"order", ido.orders.to_le_bytes().as_ref()],
         bump,
         space = 8 + Order::LEN,
@@ -109,7 +109,7 @@ pub struct AddOrder<'info> {
     pub acdm_mint: Account<'info, Mint>,
     #[account(
         init,
-        payer = user,
+        payer = seller,
         seeds = [b"order_acdm", ido.orders.to_le_bytes().as_ref()],
         bump,
         token::authority = order,
@@ -117,9 +117,9 @@ pub struct AddOrder<'info> {
     )]
     pub order_acdm: Account<'info, TokenAccount>,
     #[account(mut)]
-    pub user: Signer<'info>,
+    pub seller: Signer<'info>,
     #[account(mut)]
-    pub user_acdm: Account<'info, TokenAccount>,
+    pub seller_acdm: Account<'info, TokenAccount>,
     pub rent: Sysvar<'info, Rent>,
     pub token_program: Program<'info, Token>,
     pub system_program: Program<'info, System>,
@@ -155,14 +155,14 @@ pub struct RedeemOrder<'info> {
 #[derive(Accounts)]
 #[instruction(id: u64)]
 pub struct RemoveOrder<'info> {
-    #[account(mut, seeds = [b"order", id.to_le_bytes().as_ref()], bump = order.bump, close = user)]
+    #[account(mut, seeds = [b"order", id.to_le_bytes().as_ref()], bump = order.bump, close = seller)]
     pub order: Account<'info, Order>,
     #[account(mut, seeds = [b"order_acdm", id.to_le_bytes().as_ref()], bump = order.bump_acdm)]
     pub order_acdm: Account<'info, TokenAccount>,
     #[account(mut, address = order.authority)]
-    pub user: Signer<'info>,
+    pub seller: Signer<'info>,
     #[account(mut)]
-    pub user_acdm: Account<'info, TokenAccount>,
+    pub seller_acdm: Account<'info, TokenAccount>,
     pub token_program: Program<'info, Token>,
 }
 
