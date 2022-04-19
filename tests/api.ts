@@ -16,6 +16,7 @@ const idoProgram = anchor.workspace.Ido as Program<
 export async function initialize(
   acdmMint: PublicKey,
   usdcMint: PublicKey,
+  roundTime: BN,
   idoAuthority: Keypair,
 ): Promise<[PublicKey, PublicKey, PublicKey]> {
   const [ido] = await PublicKey
@@ -35,7 +36,8 @@ export async function initialize(
     ],
     idoProgram.programId,
   );
-  await idoProgram.methods.initialize(new BN(2))
+
+  await idoProgram.methods.initialize(roundTime)
     .accounts({
       ido,
       idoAuthority: idoAuthority.publicKey,

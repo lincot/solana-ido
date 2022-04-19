@@ -4,7 +4,7 @@ import { createMint, getAccount, mintTo } from "@solana/spl-token";
 import { expect } from "chai";
 import * as chai from "chai";
 import chaiAsPromised from "chai-as-promised";
-import { getAta } from "./utils";
+import { getATA } from "./utils";
 import {
   addOrder,
   buyAcdm,
@@ -83,6 +83,7 @@ describe("ido", () => {
     [ido, idoAcdm, idoUsdc] = await initialize(
       acdmMint,
       usdcMint,
+      new BN(2),
       idoAuthority,
     );
   });
@@ -117,12 +118,12 @@ describe("ido", () => {
       user3Usdc,
       idoAuthorityUsdc,
     ] = await Promise.all([
-      getAta(connection, user1, acdmMint),
-      getAta(connection, user1, usdcMint),
-      getAta(connection, user2, acdmMint),
-      getAta(connection, user2, usdcMint),
-      getAta(connection, user3, usdcMint),
-      getAta(connection, idoAuthority, usdcMint),
+      getATA(connection, user1, acdmMint),
+      getATA(connection, user1, usdcMint),
+      getATA(connection, user2, acdmMint),
+      getATA(connection, user2, usdcMint),
+      getATA(connection, user3, usdcMint),
+      getATA(connection, idoAuthority, usdcMint),
     ]);
 
     await Promise.all([
