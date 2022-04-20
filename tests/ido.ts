@@ -186,21 +186,9 @@ describe("ido", () => {
     expect(idoUsdcAccount.amount).to.eql(BigInt(46_000_000));
   });
 
-  it("fails to buy too much or 0", async () => {
+  it("fails to buy too much", async () => {
     await expect(buyAcdm(
       new BN(9_000_000_000_000_000),
-      ido,
-      idoAcdm,
-      idoUsdc,
-      user1,
-      user1Acdm,
-      user1Usdc,
-      member2,
-      user2Usdc,
-      user3Usdc,
-    )).to.be.rejected;
-    await expect(buyAcdm(
-      new BN(0),
       ido,
       idoAcdm,
       idoUsdc,

@@ -25,7 +25,7 @@ pub struct Ido {
     pub sale_rounds_started: u8,
 }
 impl Ido {
-    pub const LEN: usize = 1 + 1 + 1 + 32 + 1 + 32 + 32 + 8 + 8 + 8 + 8 + 8 + 1;
+    pub const LEN: usize = 1 + 1 + 1 + 32 + 1 + 32 + 32 + 8 + 8 + 8 + 4 + 4 + 1;
 }
 
 #[account]

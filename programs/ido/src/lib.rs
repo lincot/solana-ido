@@ -54,16 +54,7 @@ pub mod ido {
     pub fn start_sale_round(ctx: Context<StartSaleRound>) -> Result<()> {
         let ts = Clock::get()?.unix_timestamp as u32;
 
-        match ctx.accounts.ido.state {
-            IdoState::NotStarted => {}
-            IdoState::SaleRound => return err!(IdoError::RoundAlreadyStarted),
-            IdoState::TradeRound => {
-                if ts - ctx.accounts.ido.current_state_start_ts < ctx.accounts.ido.round_time {
-                    return err!(IdoError::CannotEndTradeRound);
-                }
-            }
-            IdoState::Over => return err!(IdoError::IdoIsOver),
-        }
+        can_start_sale_round(&ctx.accounts.ido, ts)?;
 
         ctx.accounts.ido.state = IdoState::SaleRound;
         ctx.accounts.ido.current_state_start_ts = ts;
@@ -82,16 +73,7 @@ pub mod ido {
         ctx: Context<'a, 'b, 'b, 'info, BuyAcdm<'info>>,
         acdm_amount: u64,
     ) -> Result<()> {
-        match ctx.accounts.ido.state {
-            IdoState::NotStarted => return err!(IdoError::NotSaleRound),
-            IdoState::SaleRound => {}
-            IdoState::TradeRound => return err!(IdoError::NotSaleRound),
-            IdoState::Over => return err!(IdoError::IdoIsOver),
-        }
-
-        if acdm_amount == 0 {
-            return err!(IdoError::OverflowingArgument);
-        }
+        is_sale_round(&ctx.accounts.ido)?;
 
         let usdc_amount_to_ido = acdm_amount
             .checked_mul(ctx.accounts.ido.acdm_price)
@@ -120,41 +102,19 @@ pub mod ido {
     pub fn start_trade_round(ctx: Context<StartTradeRound>) -> Result<()> {
         let ts = Clock::get()?.unix_timestamp as u32;
 
-        let sold_all = match ctx.accounts.ido.state {
-            IdoState::NotStarted => return err!(IdoError::NotSaleRound),
-            IdoState::SaleRound => {
-                let sold_all = ctx.accounts.ido_acdm.amount == 0;
-
-                if !sold_all
-                    && (ts - ctx.accounts.ido.current_state_start_ts < ctx.accounts.ido.round_time)
-                {
-                    return err!(IdoError::CannotEndSaleRound);
-                }
-
-                sold_all
-            }
-            IdoState::TradeRound => return err!(IdoError::RoundAlreadyStarted),
-            IdoState::Over => return err!(IdoError::IdoIsOver),
-        };
+        can_start_trade_round(&ctx.accounts.ido, &ctx.accounts.ido_acdm, ts)?;
 
         ctx.accounts.ido.state = IdoState::TradeRound;
         ctx.accounts.ido.current_state_start_ts = ts;
         ctx.accounts.ido.usdc_traded = 0;
 
-        if !sold_all {
-            ctx.accounts.burn_acdm()?;
-        }
+        ctx.accounts.burn_acdm()?;
 
         Ok(())
     }
 
     pub fn add_order(ctx: Context<AddOrder>, acdm_amount: u64, acdm_price: u64) -> Result<()> {
-        match ctx.accounts.ido.state {
-            IdoState::NotStarted => return err!(IdoError::NotTradeRound),
-            IdoState::SaleRound => return err!(IdoError::NotTradeRound),
-            IdoState::TradeRound => {}
-            IdoState::Over => return err!(IdoError::IdoIsOver),
-        }
+        is_trade_round(&ctx.accounts.ido)?;
 
         ctx.accounts.transfer_acdm(acdm_amount)?;
 
@@ -177,16 +137,7 @@ pub mod ido {
         id: u64,
         acdm_amount: u64,
     ) -> Result<()> {
-        match ctx.accounts.ido.state {
-            IdoState::NotStarted => return err!(IdoError::NotTradeRound),
-            IdoState::SaleRound => return err!(IdoError::NotTradeRound),
-            IdoState::TradeRound => {}
-            IdoState::Over => return err!(IdoError::IdoIsOver),
-        }
-
-        if acdm_amount == 0 {
-            return err!(IdoError::OverflowingArgument);
-        }
+        is_trade_round(&ctx.accounts.ido)?;
 
         let usdc_amount_total = acdm_amount
             .checked_mul(ctx.accounts.order.price)
@@ -233,21 +184,71 @@ pub mod ido {
     pub fn end_ido(ctx: Context<EndIdo>) -> Result<()> {
         let ts = Clock::get()?.unix_timestamp as u32;
 
-        match ctx.accounts.ido.state {
-            IdoState::NotStarted => return err!(IdoError::NotTradeRound),
-            IdoState::SaleRound => return err!(IdoError::NotTradeRound),
-            IdoState::TradeRound => {
-                if ts - ctx.accounts.ido.current_state_start_ts < ctx.accounts.ido.round_time {
-                    return err!(IdoError::CannotEndTradeRound);
-                }
-            }
-            IdoState::Over => return err!(IdoError::IdoIsOver),
-        }
+        can_end_ido(&ctx.accounts.ido, ts)?;
 
         ctx.accounts.ido.state = IdoState::Over;
         ctx.accounts.ido.current_state_start_ts = ts;
 
         Ok(())
+    }
+}
+
+fn round_time_over(ido: &Ido, ts: u32) -> Result<()> {
+    if ts - ido.current_state_start_ts < ido.round_time {
+        err!(IdoError::CannotEndRound)
+    } else {
+        Ok(())
+    }
+}
+
+fn can_start_sale_round(ido: &Ido, ts: u32) -> Result<()> {
+    match ido.state {
+        IdoState::NotStarted => Ok(()),
+        IdoState::SaleRound => err!(IdoError::RoundAlreadyStarted),
+        IdoState::TradeRound => round_time_over(ido, ts),
+        IdoState::Over => err!(IdoError::IdoIsOver),
+    }
+}
+
+fn can_start_trade_round(ido: &Ido, ido_acdm: &TokenAccount, ts: u32) -> Result<()> {
+    match ido.state {
+        IdoState::NotStarted => err!(IdoError::NotSaleRound),
+        IdoState::SaleRound => {
+            if ido_acdm.amount == 0 {
+                return Ok(());
+            }
+
+            round_time_over(ido, ts)
+        }
+        IdoState::TradeRound => err!(IdoError::RoundAlreadyStarted),
+        IdoState::Over => err!(IdoError::IdoIsOver),
+    }
+}
+
+fn can_end_ido(ido: &Ido, ts: u32) -> Result<()> {
+    match ido.state {
+        IdoState::NotStarted => err!(IdoError::NotTradeRound),
+        IdoState::SaleRound => err!(IdoError::NotTradeRound),
+        IdoState::TradeRound => round_time_over(ido, ts),
+        IdoState::Over => err!(IdoError::IdoIsOver),
+    }
+}
+
+fn is_sale_round(ido: &Ido) -> Result<()> {
+    match ido.state {
+        IdoState::NotStarted => err!(IdoError::NotSaleRound),
+        IdoState::SaleRound => Ok(()),
+        IdoState::TradeRound => err!(IdoError::NotSaleRound),
+        IdoState::Over => err!(IdoError::IdoIsOver),
+    }
+}
+
+fn is_trade_round(ido: &Ido) -> Result<()> {
+    match ido.state {
+        IdoState::NotStarted => err!(IdoError::NotTradeRound),
+        IdoState::SaleRound => err!(IdoError::NotTradeRound),
+        IdoState::TradeRound => Ok(()),
+        IdoState::Over => err!(IdoError::IdoIsOver),
     }
 }
 
@@ -376,6 +377,10 @@ impl<'info> BuyAcdm<'info> {
 
 impl<'info> StartTradeRound<'info> {
     fn burn_acdm(&self) -> Result<()> {
+        if self.ido_acdm.amount == 0 {
+            return Ok(());
+        }
+
         let seeds = &[b"ido".as_ref(), &[self.ido.bump]];
         let signer = &[&seeds[..]];
         let cpi_accounts = Burn {
