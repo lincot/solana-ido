@@ -1,15 +1,16 @@
-import { Connection, Keypair, PublicKey } from "@solana/web3.js";
+import { PublicKey } from "@solana/web3.js";
 import { getOrCreateAssociatedTokenAccount } from "@solana/spl-token";
+import { Context } from "./ctx";
 
-export async function getATA(
-  connection: Connection,
-  user: Keypair,
+export async function findATA(
+  ctx: Context,
+  user: PublicKey,
   mint: PublicKey,
 ): Promise<PublicKey> {
   return (await getOrCreateAssociatedTokenAccount(
-    connection,
-    user,
+    ctx.connection,
+    ctx.payer,
     mint,
-    user.publicKey,
+    user,
   )).address;
 }

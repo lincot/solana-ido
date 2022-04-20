@@ -8,17 +8,17 @@ import {
 } from "@solana/web3.js";
 import { TOKEN_PROGRAM_ID } from "@solana/spl-token";
 import { Ido } from "../target/types/ido";
+import { Context } from "./ctx";
+import { findATA } from "./utils";
 
 const idoProgram = anchor.workspace.Ido as Program<
   Ido
 >;
 
 export async function initialize(
-  acdmMint: PublicKey,
-  usdcMint: PublicKey,
-  roundTime: BN,
-  idoAuthority: Keypair,
-): Promise<[PublicKey, PublicKey, PublicKey]> {
+  ctx: Context,
+  roundTime: number,
+): Promise<void> {
   const [ido] = await PublicKey
     .findProgramAddress(
       [Buffer.from("ido")],
@@ -37,25 +37,27 @@ export async function initialize(
     idoProgram.programId,
   );
 
+  ctx.ido = ido;
+  ctx.idoAcdm = idoAcdm;
+  ctx.idoUsdc = idoUsdc;
+
   await idoProgram.methods.initialize(roundTime)
     .accounts({
       ido,
-      idoAuthority: idoAuthority.publicKey,
-      acdmMint,
+      idoAuthority: ctx.idoAuthority.publicKey,
+      acdmMint: ctx.acdmMint,
       idoAcdm,
-      usdcMint,
+      usdcMint: ctx.usdcMint,
       idoUsdc,
       rent: SYSVAR_RENT_PUBKEY,
       systemProgram: SystemProgram.programId,
-    }).signers([idoAuthority]).rpc();
-
-  return [ido, idoAcdm, idoUsdc];
+    }).signers([ctx.idoAuthority]).rpc();
 }
 
 export async function registerMember(
+  _ctx: Context,
   user: Keypair,
   referer: PublicKey,
-  refererMember: PublicKey,
 ): Promise<PublicKey> {
   const [member] = await PublicKey
     .findProgramAddress(
@@ -65,7 +67,13 @@ export async function registerMember(
 
   const remainingAccounts = [];
 
-  if (refererMember != null) {
+  if (referer != null) {
+    const [refererMember] = await PublicKey
+      .findProgramAddress(
+        [Buffer.from("member"), referer.toBuffer()],
+        idoProgram.programId,
+      );
+
     remainingAccounts.push({
       pubkey: refererMember,
       isWritable: false,
@@ -82,69 +90,71 @@ export async function registerMember(
   return member;
 }
 
-export async function startSaleRound(
-  ido: PublicKey,
-  idoAcdm: PublicKey,
-  idoAuthority: Keypair,
-  acdmMint: PublicKey,
-  acdmMintAuthority: Keypair,
-) {
+export async function startSaleRound(ctx: Context): Promise<void> {
   await idoProgram.methods.startSaleRound().accounts({
-    ido,
-    idoAuthority: idoAuthority.publicKey,
-    acdmMintAuthority: acdmMintAuthority.publicKey,
-    acdmMint,
-    idoAcdm,
+    ido: ctx.ido,
+    idoAuthority: ctx.idoAuthority.publicKey,
+    acdmMintAuthority: ctx.acdmMintAuthority.publicKey,
+    acdmMint: ctx.acdmMint,
+    idoAcdm: ctx.idoAcdm,
     tokenProgram: TOKEN_PROGRAM_ID,
-  }).signers([idoAuthority, acdmMintAuthority]).rpc();
+  }).signers([ctx.idoAuthority, ctx.acdmMintAuthority]).rpc();
 }
 
 export async function buyAcdm(
+  ctx: Context,
   amount: BN,
-  ido: PublicKey,
-  idoAcdm: PublicKey,
-  idoUsdc: PublicKey,
   buyer: Keypair,
-  buyerAcdm: PublicKey,
-  buyerUsdc: PublicKey,
-  refererMember: PublicKey,
-  refererUsdc: PublicKey,
-  referer2Usdc: PublicKey,
 ): Promise<void> {
   const [buyerMember] = await PublicKey
     .findProgramAddress(
       [Buffer.from("member"), buyer.publicKey.toBuffer()],
       idoProgram.programId,
     );
+  const buyerAcdm = await findATA(ctx, buyer.publicKey, ctx.acdmMint);
+  const buyerUsdc = await findATA(ctx, buyer.publicKey, ctx.usdcMint);
 
   const remainingAccounts = [];
 
-  if (refererMember) {
+  const referer = (await idoProgram.account.member.fetch(buyerMember)).referer;
+
+  if (referer) {
+    const [refererMember] = await PublicKey
+      .findProgramAddress(
+        [Buffer.from("member"), referer.toBuffer()],
+        idoProgram.programId,
+      );
+    const refererUsdc = await findATA(ctx, referer, ctx.usdcMint);
+
     remainingAccounts.push({
       pubkey: refererMember,
       isWritable: false,
       isSigner: false,
     });
-  }
-  if (refererUsdc) {
     remainingAccounts.push({
       pubkey: refererUsdc,
       isWritable: true,
       isSigner: false,
     });
-  }
-  if (referer2Usdc) {
-    remainingAccounts.push({
-      pubkey: referer2Usdc,
-      isWritable: true,
-      isSigner: false,
-    });
+
+    const referer2 =
+      (await idoProgram.account.member.fetch(refererMember)).referer;
+
+    if (referer2) {
+      const referer2Usdc = await findATA(ctx, referer2, ctx.usdcMint);
+
+      remainingAccounts.push({
+        pubkey: referer2Usdc,
+        isWritable: true,
+        isSigner: false,
+      });
+    }
   }
 
   await idoProgram.methods.buyAcdm(amount).accounts({
-    ido,
-    idoAcdm,
-    idoUsdc,
+    ido: ctx.ido,
+    idoAcdm: ctx.idoAcdm,
+    idoUsdc: ctx.idoUsdc,
     buyer: buyer.publicKey,
     buyerMember,
     buyerAcdm,
@@ -153,40 +163,35 @@ export async function buyAcdm(
   }).remainingAccounts(remainingAccounts).signers([buyer]).rpc();
 }
 
-export async function startTradeRound(
-  ido: PublicKey,
-  idoAcdm: PublicKey,
-  idoAuthority: Keypair,
-  acdmMint: PublicKey,
-): Promise<void> {
+export async function startTradeRound(ctx: Context): Promise<void> {
   await idoProgram.methods.startTradeRound().accounts({
-    ido,
-    idoAuthority: idoAuthority.publicKey,
-    acdmMint,
-    idoAcdm,
+    ido: ctx.ido,
+    idoAuthority: ctx.idoAuthority.publicKey,
+    acdmMint: ctx.acdmMint,
+    idoAcdm: ctx.idoAcdm,
     tokenProgram: TOKEN_PROGRAM_ID,
-  }).signers([idoAuthority]).rpc();
+  }).signers([ctx.idoAuthority]).rpc();
 }
 
 export async function addOrder(
+  ctx: Context,
   amount: BN,
   price: BN,
-  ido: PublicKey,
-  acdmMint: PublicKey,
   seller: Keypair,
-  sellerAcdm: PublicKey,
-): Promise<[PublicKey, PublicKey, BN]> {
+): Promise<[BN, PublicKey, PublicKey]> {
+  const ordersCount = (await idoProgram.account.ido.fetch(ctx.ido)).orders;
+
   const [order] = await PublicKey
     .findProgramAddress(
-      [Buffer.from("order"), new BN(0).toArrayLike(Buffer, "le", 8)],
+      [Buffer.from("order"), ordersCount.toArrayLike(Buffer, "le", 8)],
       idoProgram.programId,
     );
-
   const [orderAcdm] = await PublicKey
     .findProgramAddress(
-      [Buffer.from("order_acdm"), new BN(0).toArrayLike(Buffer, "le", 8)],
+      [Buffer.from("order_acdm"), ordersCount.toArrayLike(Buffer, "le", 8)],
       idoProgram.programId,
     );
+  const sellerAcdm = await findATA(ctx, seller.publicKey, ctx.acdmMint);
 
   let listener: number;
   const [event, _] = await new Promise((resolve, _reject) => {
@@ -194,9 +199,9 @@ export async function addOrder(
       resolve([event, slot]);
     });
     idoProgram.methods.addOrder(amount, price).accounts({
-      ido,
+      ido: ctx.ido,
       order,
-      acdmMint,
+      acdmMint: ctx.acdmMint,
       orderAcdm,
       seller: seller.publicKey,
       sellerAcdm,
@@ -207,53 +212,77 @@ export async function addOrder(
   });
   await idoProgram.removeEventListener(listener);
 
-  return [order, orderAcdm, event.id];
+  return [event.id, order, orderAcdm];
 }
 
 export async function redeemOrder(
+  ctx: Context,
   orderId: BN,
   amount: BN,
-  ido: PublicKey,
-  idoUsdc: PublicKey,
-  order: PublicKey,
-  orderAcdm: PublicKey,
   buyer: Keypair,
-  buyerAcdm: PublicKey,
-  buyerUsdc: PublicKey,
-  seller: PublicKey,
-  sellerMember: PublicKey,
-  sellerUsdc: PublicKey,
-  refererMember: PublicKey,
-  refererUsdc: PublicKey,
-  referer2Usdc: PublicKey,
 ): Promise<void> {
+  const [order] = await PublicKey
+    .findProgramAddress(
+      [Buffer.from("order"), orderId.toArrayLike(Buffer, "le", 8)],
+      idoProgram.programId,
+    );
+  const [orderAcdm] = await PublicKey
+    .findProgramAddress(
+      [Buffer.from("order_acdm"), orderId.toArrayLike(Buffer, "le", 8)],
+      idoProgram.programId,
+    );
+  const buyerAcdm = await findATA(ctx, buyer.publicKey, ctx.acdmMint);
+  const buyerUsdc = await findATA(ctx, buyer.publicKey, ctx.usdcMint);
+
+  const seller = (await idoProgram.account.order.fetch(order)).authority;
+
+  const sellerUsdc = await findATA(ctx, seller, ctx.usdcMint);
+  const [sellerMember] = await PublicKey
+    .findProgramAddress(
+      [Buffer.from("member"), seller.toBuffer()],
+      idoProgram.programId,
+    );
+
   const remainingAccounts = [];
 
-  if (refererMember) {
+  const referer = (await idoProgram.account.member.fetch(sellerMember)).referer;
+
+  if (referer) {
+    const [refererMember] = await PublicKey
+      .findProgramAddress(
+        [Buffer.from("member"), referer.toBuffer()],
+        idoProgram.programId,
+      );
+    const refererUsdc = await findATA(ctx, referer, ctx.usdcMint);
+
     remainingAccounts.push({
       pubkey: refererMember,
       isWritable: false,
       isSigner: false,
     });
-  }
-  if (refererUsdc) {
     remainingAccounts.push({
       pubkey: refererUsdc,
       isWritable: true,
       isSigner: false,
     });
-  }
-  if (referer2Usdc) {
-    remainingAccounts.push({
-      pubkey: referer2Usdc,
-      isWritable: true,
-      isSigner: false,
-    });
+
+    const referer2 =
+      (await idoProgram.account.member.fetch(refererMember)).referer;
+
+    if (referer2) {
+      const referer2Usdc = await findATA(ctx, referer2, ctx.usdcMint);
+
+      remainingAccounts.push({
+        pubkey: referer2Usdc,
+        isWritable: true,
+        isSigner: false,
+      });
+    }
   }
 
   await idoProgram.methods.redeemOrder(orderId, amount).accounts({
-    ido,
-    idoUsdc,
+    ido: ctx.ido,
+    idoUsdc: ctx.idoUsdc,
     order,
     orderAcdm,
     buyer: buyer.publicKey,
@@ -267,12 +296,22 @@ export async function redeemOrder(
 }
 
 export async function removeOrder(
+  ctx: Context,
   orderId: BN,
-  order: PublicKey,
-  orderAcdm: PublicKey,
   seller: Keypair,
-  sellerAcdm: PublicKey,
 ): Promise<void> {
+  const [order] = await PublicKey
+    .findProgramAddress(
+      [Buffer.from("order"), orderId.toArrayLike(Buffer, "le", 8)],
+      idoProgram.programId,
+    );
+  const [orderAcdm] = await PublicKey
+    .findProgramAddress(
+      [Buffer.from("order_acdm"), orderId.toArrayLike(Buffer, "le", 8)],
+      idoProgram.programId,
+    );
+  const sellerAcdm = await findATA(ctx, seller.publicKey, ctx.acdmMint);
+
   await idoProgram.methods.removeOrder(orderId).accounts({
     order,
     orderAcdm,
@@ -283,26 +322,20 @@ export async function removeOrder(
 }
 
 export async function withdrawIdoUsdc(
-  ido: PublicKey,
-  idoUsdc: PublicKey,
-  idoAuthority: Keypair,
-  idoAuthorityUsdc: PublicKey,
+  ctx: Context,
 ): Promise<void> {
   await idoProgram.methods.withdrawIdoUsdc().accounts({
-    ido,
-    idoAuthority: idoAuthority.publicKey,
-    idoUsdc,
-    to: idoAuthorityUsdc,
+    ido: ctx.ido,
+    idoAuthority: ctx.idoAuthority.publicKey,
+    idoUsdc: ctx.idoUsdc,
+    to: ctx.idoAuthorityUsdc,
     tokenProgram: TOKEN_PROGRAM_ID,
-  }).signers([idoAuthority]).rpc();
+  }).signers([ctx.idoAuthority]).rpc();
 }
 
-export async function endIdo(
-  ido: PublicKey,
-  idoAuthority: Keypair,
-): Promise<void> {
+export async function endIdo(ctx: Context): Promise<void> {
   await idoProgram.methods.endIdo().accounts({
-    ido,
-    idoAuthority: idoAuthority.publicKey,
-  }).signers([idoAuthority]).rpc();
+    ido: ctx.ido,
+    idoAuthority: ctx.idoAuthority.publicKey,
+  }).signers([ctx.idoAuthority]).rpc();
 }
