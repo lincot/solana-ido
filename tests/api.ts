@@ -143,7 +143,7 @@ export async function addOrder(
 
   let listener: number;
   const [event, _] = await new Promise((resolve, _reject) => {
-    listener = ctx.program.addEventListener("OrderEvent", (event, slot) => {
+    listener = ctx.program.addEventListener("AddOrderEvent", (event, slot) => {
       resolve([event, slot]);
     });
     ctx.program.methods.addOrder(amount, price).accounts({
