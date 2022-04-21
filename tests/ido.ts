@@ -1,10 +1,10 @@
+import * as anchor from "@project-serum/anchor";
 import { BN } from "@project-serum/anchor";
-import { Connection, Keypair, PublicKey } from "@solana/web3.js";
+import { Connection, Keypair } from "@solana/web3.js";
 import { createMint, getAccount, mintTo } from "@solana/spl-token";
 import { expect } from "chai";
 import * as chai from "chai";
 import chaiAsPromised from "chai-as-promised";
-import { findATA } from "./utils";
 import { Context } from "./ctx";
 import {
   addOrder,
@@ -24,6 +24,7 @@ chai.use(chaiAsPromised);
 describe("ido", () => {
   const ctx = new Context();
 
+  ctx.program = anchor.workspace.Ido;
   ctx.connection = new Connection("http://localhost:8899", "recent");
 
   ctx.payer = new Keypair();
@@ -90,35 +91,13 @@ describe("ido", () => {
     await startSaleRound(ctx);
   });
 
-  let user1Acdm: PublicKey;
-  let user1Usdc: PublicKey;
-  let user2Acdm: PublicKey;
-  let user2Usdc: PublicKey;
-  let user3Usdc: PublicKey;
-
-  it("sets users' ATAs", async () => {
-    [
-      user1Acdm,
-      user1Usdc,
-      user2Acdm,
-      user2Usdc,
-      user3Usdc,
-      ctx.idoAuthorityUsdc,
-    ] = await Promise.all([
-      findATA(ctx, user1.publicKey, ctx.acdmMint),
-      findATA(ctx, user1.publicKey, ctx.usdcMint),
-      findATA(ctx, user2.publicKey, ctx.acdmMint),
-      findATA(ctx, user2.publicKey, ctx.usdcMint),
-      findATA(ctx, user3.publicKey, ctx.usdcMint),
-      findATA(ctx, ctx.idoAuthority.publicKey, ctx.usdcMint),
-    ]);
-
+  it("mints", async () => {
     await Promise.all([
       mintTo(
         ctx.connection,
         user1,
         ctx.usdcMint,
-        await findATA(ctx, user1.publicKey, ctx.usdcMint),
+        await ctx.ata(user1.publicKey, ctx.usdcMint),
         ctx.usdcMintAuthority,
         100_000_000,
       ),
@@ -126,7 +105,7 @@ describe("ido", () => {
         ctx.connection,
         user2,
         ctx.usdcMint,
-        await findATA(ctx, user2.publicKey, ctx.usdcMint),
+        await ctx.ata(user2.publicKey, ctx.usdcMint),
         ctx.usdcMintAuthority,
         100_000_000,
       ),
@@ -146,19 +125,34 @@ describe("ido", () => {
       user1,
     );
 
-    const user1AcdmAccount = await getAccount(ctx.connection, user1Acdm);
+    const user1AcdmAccount = await getAccount(
+      ctx.connection,
+      await ctx.ata(user1.publicKey, ctx.acdmMint),
+    );
     expect(user1AcdmAccount.amount).to.eql(BigInt(500));
 
-    const user1UsdcAccount = await getAccount(ctx.connection, user1Usdc);
+    const user1UsdcAccount = await getAccount(
+      ctx.connection,
+      await ctx.ata(user1.publicKey, ctx.usdcMint),
+    );
     expect(user1UsdcAccount.amount).to.eql(BigInt(50_000_000));
 
-    const user2UsdcAccount = await getAccount(ctx.connection, user2Usdc);
+    const user2UsdcAccount = await getAccount(
+      ctx.connection,
+      await ctx.ata(user2.publicKey, ctx.usdcMint),
+    );
     expect(user2UsdcAccount.amount).to.eql(BigInt(102_500_000));
 
-    const user3UsdcAccount = await getAccount(ctx.connection, user3Usdc);
+    const user3UsdcAccount = await getAccount(
+      ctx.connection,
+      await ctx.ata(user3.publicKey, ctx.usdcMint),
+    );
     expect(user3UsdcAccount.amount).to.eql(BigInt(1_500_000));
 
-    const idoUsdcAccount = await getAccount(ctx.connection, ctx.idoUsdc);
+    const idoUsdcAccount = await getAccount(
+      ctx.connection,
+      await ctx.idoUsdc(),
+    );
     expect(idoUsdcAccount.amount).to.eql(BigInt(46_000_000));
   });
 
@@ -175,61 +169,87 @@ describe("ido", () => {
   it("starts trade round", async () => {
     await startTradeRound(ctx);
 
-    const idoAcdmAccount = await getAccount(ctx.connection, ctx.idoAcdm);
+    const idoAcdmAccount = await getAccount(
+      ctx.connection,
+      await ctx.idoAcdm(),
+    );
     expect(idoAcdmAccount.amount).to.eql(BigInt(0));
   });
 
+  let orderId: BN;
+
   it("adds order", async () => {
-    [ctx.orderId, ctx.order, ctx.orderAcdm] = await addOrder(
+    orderId = await addOrder(
       ctx,
       new BN(100),
       new BN(130_000),
       user1,
     );
 
-    expect(ctx.orderId.toNumber()).to.eq(0);
+    expect(orderId.toNumber()).to.eq(0);
 
-    const user1AcdmAccount = await getAccount(ctx.connection, user1Acdm);
+    const user1AcdmAccount = await getAccount(
+      ctx.connection,
+      await ctx.ata(user1.publicKey, ctx.acdmMint),
+    );
     expect(user1AcdmAccount.amount).to.eql(BigInt(400));
 
-    const orderAcdmAccount = await getAccount(ctx.connection, ctx.orderAcdm);
+    const orderAcdmAccount = await getAccount(
+      ctx.connection,
+      await ctx.orderAcdm(orderId),
+    );
     expect(orderAcdmAccount.amount).to.eql(BigInt(100));
   });
 
   it("redeems order partly", async () => {
     await redeemOrder(
       ctx,
-      ctx.orderId,
+      orderId,
       new BN(40),
       user2,
     );
 
-    const user1UsdcAccount = await getAccount(ctx.connection, user1Usdc);
+    const user1UsdcAccount = await getAccount(
+      ctx.connection,
+      await ctx.ata(user1.publicKey, ctx.usdcMint),
+    );
     expect(user1UsdcAccount.amount).to.eql(BigInt(54_940_000));
 
-    const user2AcdmAccount = await getAccount(ctx.connection, user2Acdm);
+    const user2AcdmAccount = await getAccount(
+      ctx.connection,
+      await ctx.ata(user2.publicKey, ctx.acdmMint),
+    );
     expect(user2AcdmAccount.amount).to.eql(BigInt(40));
 
-    const orderAcdmAccount = await getAccount(ctx.connection, ctx.orderAcdm);
+    const orderAcdmAccount = await getAccount(
+      ctx.connection,
+      await ctx.orderAcdm(orderId),
+    );
     expect(orderAcdmAccount.amount).to.eql(BigInt(60));
   });
 
   it("removes order", async () => {
-    await removeOrder(ctx, ctx.orderId, user1);
+    await removeOrder(ctx, orderId, user1);
 
-    const user1AcdmAccount = await getAccount(ctx.connection, user1Acdm);
+    const user1AcdmAccount = await getAccount(
+      ctx.connection,
+      await ctx.ata(user1.publicKey, ctx.acdmMint),
+    );
     expect(user1AcdmAccount.amount).to.eql(BigInt(460));
   });
 
   it("withdraws ido usdc", async () => {
     await withdrawIdoUsdc(ctx);
 
-    const idoUsdcAccount = await getAccount(ctx.connection, ctx.idoUsdc);
+    const idoUsdcAccount = await getAccount(
+      ctx.connection,
+      await ctx.idoUsdc(),
+    );
     expect(idoUsdcAccount.amount).to.eql(BigInt(0));
 
     const idoAuthorityUsdcAccount = await getAccount(
       ctx.connection,
-      ctx.idoAuthorityUsdc,
+      await ctx.ata(ctx.idoAuthority.publicKey, ctx.usdcMint),
     );
     expect(idoAuthorityUsdcAccount.amount).to.eql(BigInt(46_000_000));
   });
