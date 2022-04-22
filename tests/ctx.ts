@@ -45,93 +45,39 @@ export class Context {
       ))[0];
   }
 
-  members: Map<PublicKey, PublicKey>;
-
-  async member(user: PublicKey) {
-    const in_map = this.members.get(user);
-
-    if (in_map) {
-      return in_map;
-    }
-
-    const [member] = await PublicKey
+  async member(user: PublicKey): Promise<PublicKey> {
+    return (await PublicKey
       .findProgramAddress(
         [Buffer.from("member"), user.toBuffer()],
         this.program.programId,
-      );
-
-    this.members.set(user, member);
-
-    return member;
+      ))[0];
   }
 
-  private orders: Map<BN, PublicKey>;
-
-  async order(id: BN) {
-    const in_map = this.orders.get(id);
-
-    if (in_map) {
-      return in_map;
-    }
-
-    const [order] = await PublicKey
+  async order(id: BN): Promise<PublicKey> {
+    return (await PublicKey
       .findProgramAddress(
         [Buffer.from("order"), id.toArrayLike(Buffer, "le", 8)],
         this.program.programId,
-      );
-
-    this.orders.set(id, order);
-
-    return order;
+      ))[0];
   }
 
-  private orderAcdms: Map<BN, PublicKey>;
-
-  async orderAcdm(id: BN) {
-    const in_map = this.orderAcdms.get(id);
-
-    if (in_map) {
-      return in_map;
-    }
-
-    const [orderAcdm] = await PublicKey
+  async orderAcdm(id: BN): Promise<PublicKey> {
+    return (await PublicKey
       .findProgramAddress(
         [Buffer.from("order_acdm"), id.toArrayLike(Buffer, "le", 8)],
         this.program.programId,
-      );
-
-    this.orderAcdms.set(id, orderAcdm);
-
-    return orderAcdm;
+      ))[0];
   }
-
-  private atas: Map<[PublicKey, PublicKey], PublicKey>;
 
   async ata(
     user: PublicKey,
     mint: PublicKey,
   ): Promise<PublicKey> {
-    const in_map = this.atas.get([user, mint]);
-
-    if (in_map) {
-      return in_map;
-    }
-
-    const ata = (await getOrCreateAssociatedTokenAccount(
+    return (await getOrCreateAssociatedTokenAccount(
       this.connection,
       this.payer,
       mint,
       user,
     )).address;
-
-    this.atas.set([user, mint], ata);
-
-    return ata;
-  }
-  constructor() {
-    this.members = new Map();
-    this.orders = new Map();
-    this.orderAcdms = new Map();
-    this.atas = new Map();
   }
 }
