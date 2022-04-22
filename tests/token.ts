@@ -1,6 +1,5 @@
 import { getAccount } from "@solana/spl-token";
 import { Keypair, PublicKey } from "@solana/web3.js";
-import { expect } from "chai";
 import { Context } from "./ctx";
 import * as token from "@solana/spl-token";
 
@@ -14,31 +13,21 @@ export class TokenAccount {
   }
 
   async amount(ctx: Context): Promise<BigInt> {
-    return (await getAccount(
-      ctx.connection,
-      this.address,
-    )).amount;
-  }
-
-  async checkAmount(ctx: Context, amount: number): Promise<void> {
-    expect(await this.amount(ctx)).to
-      .eql(
-        BigInt(amount),
-      );
+    return (await getAccount(ctx.connection, this.address)).amount;
   }
 }
 
 export async function createMint(
   ctx: Context,
   authority: Keypair,
-  decimals: number,
+  decimals: number
 ) {
   return await token.createMint(
     ctx.connection,
     ctx.payer,
     authority.publicKey,
     undefined,
-    decimals,
+    decimals
   );
 }
 
@@ -47,7 +36,7 @@ export async function mintTo(
   mint: PublicKey,
   user: PublicKey,
   mintAuthority: Keypair,
-  amount: number | bigint,
+  amount: number | bigint
 ) {
   token.mintTo(
     ctx.connection,
@@ -55,6 +44,6 @@ export async function mintTo(
     mint,
     (await ctx.ata(user, mint)).address,
     mintAuthority,
-    amount,
+    amount
   );
 }
