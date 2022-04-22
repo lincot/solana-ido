@@ -2,6 +2,7 @@ import { BN, Program } from "@project-serum/anchor";
 import { getOrCreateAssociatedTokenAccount } from "@solana/spl-token";
 import { Connection, Keypair, PublicKey } from "@solana/web3.js";
 import { Ido } from "../target/types/ido";
+import { TokenAccount } from "./token";
 
 export class Context {
   connection: Connection;
@@ -29,20 +30,24 @@ export class Context {
       ))[0];
   }
 
-  public async idoAcdm(): Promise<PublicKey> {
-    return this._idoAcdm ?? (await PublicKey
+  public async idoAcdm(): Promise<TokenAccount> {
+    const address = this._idoAcdm ?? (await PublicKey
       .findProgramAddress(
         [Buffer.from("ido_acdm")],
         this.program.programId,
       ))[0];
+
+    return new TokenAccount(address, this.acdmMint);
   }
 
-  public async idoUsdc(): Promise<PublicKey> {
-    return this._idoUsdc ?? (await PublicKey
+  public async idoUsdc(): Promise<TokenAccount> {
+    const address = this._idoUsdc ?? (await PublicKey
       .findProgramAddress(
         [Buffer.from("ido_usdc")],
         this.program.programId,
       ))[0];
+
+    return new TokenAccount(address, this.usdcMint);
   }
 
   async member(user: PublicKey): Promise<PublicKey> {
@@ -61,23 +66,27 @@ export class Context {
       ))[0];
   }
 
-  async orderAcdm(id: BN): Promise<PublicKey> {
-    return (await PublicKey
+  async orderAcdm(id: BN): Promise<TokenAccount> {
+    const address = (await PublicKey
       .findProgramAddress(
         [Buffer.from("order_acdm"), id.toArrayLike(Buffer, "le", 8)],
         this.program.programId,
       ))[0];
+
+    return new TokenAccount(address, this.acdmMint);
   }
 
   async ata(
     user: PublicKey,
     mint: PublicKey,
-  ): Promise<PublicKey> {
-    return (await getOrCreateAssociatedTokenAccount(
+  ): Promise<TokenAccount> {
+    const address = (await getOrCreateAssociatedTokenAccount(
       this.connection,
       this.payer,
       mint,
       user,
     )).address;
+
+    return new TokenAccount(address, mint);
   }
 }

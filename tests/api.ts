@@ -17,9 +17,9 @@ export async function initialize(
       ido: await ctx.ido(),
       idoAuthority: ctx.idoAuthority.publicKey,
       acdmMint: ctx.acdmMint,
-      idoAcdm: await ctx.idoAcdm(),
+      idoAcdm: (await ctx.idoAcdm()).address,
       usdcMint: ctx.usdcMint,
-      idoUsdc: await ctx.idoUsdc(),
+      idoUsdc: (await ctx.idoUsdc()).address,
       rent: SYSVAR_RENT_PUBKEY,
       systemProgram: SystemProgram.programId,
     }).signers([ctx.idoAuthority]).rpc();
@@ -58,7 +58,7 @@ export async function startSaleRound(ctx: Context): Promise<void> {
     idoAuthority: ctx.idoAuthority.publicKey,
     acdmMintAuthority: ctx.acdmMintAuthority.publicKey,
     acdmMint: ctx.acdmMint,
-    idoAcdm: await ctx.idoAcdm(),
+    idoAcdm: (await ctx.idoAcdm()).address,
     tokenProgram: TOKEN_PROGRAM_ID,
   }).signers([ctx.idoAuthority, ctx.acdmMintAuthority]).rpc();
 }
@@ -69,8 +69,8 @@ export async function buyAcdm(
   buyer: Keypair,
 ): Promise<void> {
   const buyerMember = await ctx.member(buyer.publicKey);
-  const buyerAcdm = await ctx.ata(buyer.publicKey, ctx.acdmMint);
-  const buyerUsdc = await ctx.ata(buyer.publicKey, ctx.usdcMint);
+  const buyerAcdm = (await ctx.ata(buyer.publicKey, ctx.acdmMint)).address;
+  const buyerUsdc = (await ctx.ata(buyer.publicKey, ctx.usdcMint)).address;
 
   const remainingAccounts = [];
 
@@ -78,7 +78,7 @@ export async function buyAcdm(
 
   if (referer) {
     const refererMember = await ctx.member(referer);
-    const refererUsdc = await ctx.ata(referer, ctx.usdcMint);
+    const refererUsdc = (await ctx.ata(referer, ctx.usdcMint)).address;
 
     remainingAccounts.push({
       pubkey: refererMember,
@@ -95,7 +95,7 @@ export async function buyAcdm(
       (await ctx.program.account.member.fetch(refererMember)).referer;
 
     if (referer2) {
-      const referer2Usdc = await ctx.ata(referer2, ctx.usdcMint);
+      const referer2Usdc = (await ctx.ata(referer2, ctx.usdcMint)).address;
 
       remainingAccounts.push({
         pubkey: referer2Usdc,
@@ -107,8 +107,8 @@ export async function buyAcdm(
 
   await ctx.program.methods.buyAcdm(amount).accounts({
     ido: await ctx.ido(),
-    idoAcdm: await ctx.idoAcdm(),
-    idoUsdc: await ctx.idoUsdc(),
+    idoAcdm: (await ctx.idoAcdm()).address,
+    idoUsdc: (await ctx.idoUsdc()).address,
     buyer: buyer.publicKey,
     buyerMember,
     buyerAcdm,
@@ -122,7 +122,7 @@ export async function startTradeRound(ctx: Context): Promise<void> {
     ido: await ctx.ido(),
     idoAuthority: ctx.idoAuthority.publicKey,
     acdmMint: ctx.acdmMint,
-    idoAcdm: await ctx.idoAcdm(),
+    idoAcdm: (await ctx.idoAcdm()).address,
     tokenProgram: TOKEN_PROGRAM_ID,
   }).signers([ctx.idoAuthority]).rpc();
 }
@@ -136,8 +136,8 @@ export async function addOrder(
   const orderId = (await ctx.program.account.ido.fetch(await ctx.ido())).orders;
 
   const order = await ctx.order(orderId);
-  const orderAcdm = await ctx.orderAcdm(orderId);
-  const sellerAcdm = await ctx.ata(seller.publicKey, ctx.acdmMint);
+  const orderAcdm = (await ctx.orderAcdm(orderId)).address;
+  const sellerAcdm = (await ctx.ata(seller.publicKey, ctx.acdmMint)).address;
 
   const ido = await ctx.ido();
 
@@ -170,13 +170,13 @@ export async function redeemOrder(
   buyer: Keypair,
 ): Promise<void> {
   const order = await ctx.order(orderId);
-  const orderAcdm = await ctx.orderAcdm(orderId);
-  const buyerAcdm = await ctx.ata(buyer.publicKey, ctx.acdmMint);
-  const buyerUsdc = await ctx.ata(buyer.publicKey, ctx.usdcMint);
+  const orderAcdm = (await ctx.orderAcdm(orderId)).address;
+  const buyerAcdm = (await ctx.ata(buyer.publicKey, ctx.acdmMint)).address;
+  const buyerUsdc = (await ctx.ata(buyer.publicKey, ctx.usdcMint)).address;
 
   const seller = (await ctx.program.account.order.fetch(order)).authority;
 
-  const sellerUsdc = await ctx.ata(seller, ctx.usdcMint);
+  const sellerUsdc = (await ctx.ata(seller, ctx.usdcMint)).address;
   const sellerMember = await ctx.member(seller);
 
   const remainingAccounts = [];
@@ -186,7 +186,7 @@ export async function redeemOrder(
 
   if (referer) {
     const refererMember = await ctx.member(referer);
-    const refererUsdc = await ctx.ata(referer, ctx.usdcMint);
+    const refererUsdc = (await ctx.ata(referer, ctx.usdcMint)).address;
 
     remainingAccounts.push({
       pubkey: refererMember,
@@ -203,7 +203,7 @@ export async function redeemOrder(
       (await ctx.program.account.member.fetch(refererMember)).referer;
 
     if (referer2) {
-      const referer2Usdc = await ctx.ata(referer2, ctx.usdcMint);
+      const referer2Usdc = (await ctx.ata(referer2, ctx.usdcMint)).address;
 
       remainingAccounts.push({
         pubkey: referer2Usdc,
@@ -215,7 +215,7 @@ export async function redeemOrder(
 
   await ctx.program.methods.redeemOrder(orderId, amount).accounts({
     ido: await ctx.ido(),
-    idoUsdc: await ctx.idoUsdc(),
+    idoUsdc: (await ctx.idoUsdc()).address,
     order,
     orderAcdm,
     buyer: buyer.publicKey,
@@ -234,8 +234,8 @@ export async function removeOrder(
   seller: Keypair,
 ): Promise<void> {
   const order = await ctx.order(orderId);
-  const orderAcdm = await ctx.orderAcdm(orderId);
-  const sellerAcdm = await ctx.ata(seller.publicKey, ctx.acdmMint);
+  const orderAcdm = (await ctx.orderAcdm(orderId)).address;
+  const sellerAcdm = (await ctx.ata(seller.publicKey, ctx.acdmMint)).address;
 
   await ctx.program.methods.removeOrder(orderId).accounts({
     order,
@@ -252,8 +252,8 @@ export async function withdrawIdoUsdc(
   await ctx.program.methods.withdrawIdoUsdc().accounts({
     ido: await ctx.ido(),
     idoAuthority: ctx.idoAuthority.publicKey,
-    idoUsdc: await ctx.idoUsdc(),
-    to: await ctx.ata(ctx.idoAuthority.publicKey, ctx.usdcMint),
+    idoUsdc: (await ctx.idoUsdc()).address,
+    to: (await ctx.ata(ctx.idoAuthority.publicKey, ctx.usdcMint)).address,
     tokenProgram: TOKEN_PROGRAM_ID,
   }).signers([ctx.idoAuthority]).rpc();
 }
