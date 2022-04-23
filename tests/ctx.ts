@@ -7,9 +7,7 @@ import { airdrop, findPDA } from "./utils";
 
 export class Context {
   connection: Connection;
-
   program: Program<Ido>;
-
   payer: Keypair;
 
   acdmMintAuthority: Keypair;
@@ -18,19 +16,17 @@ export class Context {
   usdcMint: PublicKey;
 
   idoAuthority: Keypair;
+  ido: PublicKey;
+  idoAcdm: TokenAccount;
+  idoUsdc: TokenAccount;
 
   user1: Keypair;
   user2: Keypair;
   user3: Keypair;
 
-  ido: PublicKey;
-  idoAcdm: TokenAccount;
-  idoUsdc: TokenAccount;
-
   constructor() {
-    this.program = anchor.workspace.Ido;
     this.connection = new Connection("http://localhost:8899", "recent");
-
+    this.program = anchor.workspace.Ido;
     this.payer = new Keypair();
     this.acdmMintAuthority = new Keypair();
     this.usdcMintAuthority = new Keypair();
@@ -51,9 +47,15 @@ export class Context {
     this.acdmMint = await createMint(this, this.acdmMintAuthority, 2);
     this.usdcMint = await createMint(this, this.usdcMintAuthority, 6);
 
-    this.ido = await this.getIdo();
-    this.idoAcdm = await this.getIdoAcdm();
-    this.idoUsdc = await this.getIdoUsdc();
+    this.ido = await findPDA(this, [Buffer.from("ido")]);
+    this.idoAcdm = new TokenAccount(
+      await findPDA(this, [Buffer.from("ido_acdm")]),
+      this.acdmMint
+    );
+    this.idoUsdc = new TokenAccount(
+      await findPDA(this, [Buffer.from("ido_usdc")]),
+      this.usdcMint
+    );
 
     await mintTo(
       this,
@@ -69,20 +71,6 @@ export class Context {
       this.usdcMintAuthority,
       100_000_000
     );
-  }
-
-  private async getIdo(): Promise<PublicKey> {
-    return await findPDA(this, [Buffer.from("ido")]);
-  }
-
-  private async getIdoAcdm(): Promise<TokenAccount> {
-    const address = await findPDA(this, [Buffer.from("ido_acdm")]);
-    return new TokenAccount(address, this.acdmMint);
-  }
-
-  private async getIdoUsdc(): Promise<TokenAccount> {
-    const address = await findPDA(this, [Buffer.from("ido_usdc")]);
-    return new TokenAccount(address, this.usdcMint);
   }
 
   async member(user: PublicKey): Promise<PublicKey> {
@@ -105,10 +93,10 @@ export class Context {
   }
 
   async acdmATA(owner: PublicKey): Promise<TokenAccount> {
-    return getATA(this, owner, this.acdmMint);
+    return await getATA(this, owner, this.acdmMint);
   }
 
   async usdcATA(owner: PublicKey): Promise<TokenAccount> {
-    return getATA(this, owner, this.usdcMint);
+    return await getATA(this, owner, this.usdcMint);
   }
 }

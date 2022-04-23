@@ -32,7 +32,7 @@ export async function registerMember(
   ctx: Context,
   user: Keypair,
   referer: PublicKey
-): Promise<PublicKey> {
+): Promise<void> {
   const member = await ctx.member(user.publicKey);
   const remainingAccounts = [];
 
@@ -56,8 +56,6 @@ export async function registerMember(
     .remainingAccounts(remainingAccounts)
     .signers([user])
     .rpc();
-
-  return member;
 }
 
 export async function startSaleRound(ctx: Context): Promise<void> {
