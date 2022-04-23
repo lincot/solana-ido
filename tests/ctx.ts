@@ -1,10 +1,9 @@
 import * as anchor from "@project-serum/anchor";
 import { BN, Program } from "@project-serum/anchor";
-import { getOrCreateAssociatedTokenAccount } from "@solana/spl-token";
 import { Connection, Keypair, PublicKey } from "@solana/web3.js";
 import { Ido } from "../target/types/ido";
-import { createMint, mintTo, TokenAccount } from "./token";
-import { airdrop } from "./utils";
+import { createMint, getATA, mintTo, TokenAccount } from "./token";
+import { airdrop, findPDA } from "./utils";
 
 export class Context {
   connection: Connection;
@@ -24,9 +23,9 @@ export class Context {
   user2: Keypair;
   user3: Keypair;
 
-  private _ido: PublicKey;
-  private _idoAcdm: PublicKey;
-  private _idoUsdc: PublicKey;
+  ido: PublicKey;
+  idoAcdm: TokenAccount;
+  idoUsdc: TokenAccount;
 
   constructor() {
     this.program = anchor.workspace.Ido;
@@ -52,6 +51,10 @@ export class Context {
     this.acdmMint = await createMint(this, this.acdmMintAuthority, 2);
     this.usdcMint = await createMint(this, this.usdcMintAuthority, 6);
 
+    this.ido = await this.getIdo();
+    this.idoAcdm = await this.getIdoAcdm();
+    this.idoUsdc = await this.getIdoUsdc();
+
     await mintTo(
       this,
       this.usdcMint,
@@ -68,83 +71,44 @@ export class Context {
     );
   }
 
-  public async ido(): Promise<PublicKey> {
-    return (
-      this._ido ??
-      (
-        await PublicKey.findProgramAddress(
-          [Buffer.from("ido")],
-          this.program.programId
-        )
-      )[0]
-    );
+  private async getIdo(): Promise<PublicKey> {
+    return await findPDA(this, [Buffer.from("ido")]);
   }
 
-  public async idoAcdm(): Promise<TokenAccount> {
-    const address =
-      this._idoAcdm ??
-      (
-        await PublicKey.findProgramAddress(
-          [Buffer.from("ido_acdm")],
-          this.program.programId
-        )
-      )[0];
-
+  private async getIdoAcdm(): Promise<TokenAccount> {
+    const address = await findPDA(this, [Buffer.from("ido_acdm")]);
     return new TokenAccount(address, this.acdmMint);
   }
 
-  public async idoUsdc(): Promise<TokenAccount> {
-    const address =
-      this._idoUsdc ??
-      (
-        await PublicKey.findProgramAddress(
-          [Buffer.from("ido_usdc")],
-          this.program.programId
-        )
-      )[0];
-
+  private async getIdoUsdc(): Promise<TokenAccount> {
+    const address = await findPDA(this, [Buffer.from("ido_usdc")]);
     return new TokenAccount(address, this.usdcMint);
   }
 
   async member(user: PublicKey): Promise<PublicKey> {
-    return (
-      await PublicKey.findProgramAddress(
-        [Buffer.from("member"), user.toBuffer()],
-        this.program.programId
-      )
-    )[0];
+    return await findPDA(this, [Buffer.from("member"), user.toBuffer()]);
   }
 
   async order(id: BN): Promise<PublicKey> {
-    return (
-      await PublicKey.findProgramAddress(
-        [Buffer.from("order"), id.toArrayLike(Buffer, "le", 8)],
-        this.program.programId
-      )
-    )[0];
+    return await findPDA(this, [
+      Buffer.from("order"),
+      id.toArrayLike(Buffer, "le", 8),
+    ]);
   }
 
   async orderAcdm(id: BN): Promise<TokenAccount> {
-    const address = (
-      await PublicKey.findProgramAddress(
-        [Buffer.from("order_acdm"), id.toArrayLike(Buffer, "le", 8)],
-        this.program.programId
-      )
-    )[0];
-
+    const address = await findPDA(this, [
+      Buffer.from("order_acdm"),
+      id.toArrayLike(Buffer, "le", 8),
+    ]);
     return new TokenAccount(address, this.acdmMint);
   }
 
-  async ata(user: PublicKey, mint: PublicKey): Promise<TokenAccount> {
-    const address = (
-      await getOrCreateAssociatedTokenAccount(
-        this.connection,
-        this.payer,
-        mint,
-        user
-      )
-    ).address;
+  async acdmATA(owner: PublicKey): Promise<TokenAccount> {
+    return getATA(this, owner, this.acdmMint);
+  }
 
-    return new TokenAccount(address, mint);
+  async usdcATA(owner: PublicKey): Promise<TokenAccount> {
+    return getATA(this, owner, this.usdcMint);
   }
 }

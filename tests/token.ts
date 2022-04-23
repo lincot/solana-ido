@@ -1,19 +1,21 @@
-import { getAccount } from "@solana/spl-token";
+import {
+  getAccount,
+  getOrCreateAssociatedTokenAccount,
+} from "@solana/spl-token";
 import { Keypair, PublicKey } from "@solana/web3.js";
 import { Context } from "./ctx";
 import * as token from "@solana/spl-token";
 
-export class TokenAccount {
-  address: PublicKey;
+export class TokenAccount extends PublicKey {
   mint: PublicKey;
 
   constructor(address: PublicKey, mint: PublicKey) {
-    this.address = address;
+    super(address);
     this.mint = mint;
   }
 
   async amount(ctx: Context): Promise<BigInt> {
-    return (await getAccount(ctx.connection, this.address)).amount;
+    return (await getAccount(ctx.connection, this)).amount;
   }
 }
 
@@ -42,8 +44,25 @@ export async function mintTo(
     ctx.connection,
     ctx.payer,
     mint,
-    (await ctx.ata(user, mint)).address,
+    await getATA(ctx, user, mint),
     mintAuthority,
     amount
   );
+}
+
+export async function getATA(
+  ctx: Context,
+  owner: PublicKey,
+  mint: PublicKey
+): Promise<TokenAccount> {
+  const address = (
+    await getOrCreateAssociatedTokenAccount(
+      ctx.connection,
+      ctx.payer,
+      mint,
+      owner
+    )
+  ).address;
+
+  return new TokenAccount(address, mint);
 }

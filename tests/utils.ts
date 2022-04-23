@@ -31,3 +31,10 @@ export async function airdrop(
 
   await sendAndConfirmTransaction(ctx.connection, tx, [ctx.payer]);
 }
+
+export async function findPDA(
+  ctx: Context,
+  seeds: (Buffer | Uint8Array)[]
+): Promise<PublicKey> {
+  return (await PublicKey.findProgramAddress(seeds, ctx.program.programId))[0];
+}
