@@ -2,7 +2,7 @@ import * as anchor from "@project-serum/anchor";
 import { BN, Program } from "@project-serum/anchor";
 import { Connection, Keypair, PublicKey } from "@solana/web3.js";
 import { Ido } from "../target/types/ido";
-import { createMint, getATA, mintTo, TokenAccount } from "./token";
+import { createMint, findATA, mintTo, TokenAccount } from "./token";
 import { airdrop, findPDA } from "./utils";
 
 export class Context {
@@ -59,15 +59,13 @@ export class Context {
 
     await mintTo(
       this,
-      this.usdcMint,
-      this.user1.publicKey,
+      await this.usdcATA(this.user1.publicKey),
       this.usdcMintAuthority,
       100_000_000
     );
     await mintTo(
       this,
-      this.usdcMint,
-      this.user2.publicKey,
+      await this.usdcATA(this.user2.publicKey),
       this.usdcMintAuthority,
       100_000_000
     );
@@ -93,10 +91,10 @@ export class Context {
   }
 
   async acdmATA(owner: PublicKey): Promise<TokenAccount> {
-    return await getATA(this, owner, this.acdmMint);
+    return await findATA(this, owner, this.acdmMint);
   }
 
   async usdcATA(owner: PublicKey): Promise<TokenAccount> {
-    return await getATA(this, owner, this.usdcMint);
+    return await findATA(this, owner, this.usdcMint);
   }
 }

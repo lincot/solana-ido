@@ -23,7 +23,7 @@ export async function createMint(
   ctx: Context,
   authority: Keypair,
   decimals: number
-) {
+): Promise<PublicKey> {
   return await token.createMint(
     ctx.connection,
     ctx.payer,
@@ -35,22 +35,21 @@ export async function createMint(
 
 export async function mintTo(
   ctx: Context,
-  mint: PublicKey,
-  user: PublicKey,
+  destination: TokenAccount,
   mintAuthority: Keypair,
   amount: number | bigint
-) {
-  token.mintTo(
+): Promise<void> {
+  await token.mintTo(
     ctx.connection,
     ctx.payer,
-    mint,
-    await getATA(ctx, user, mint),
+    destination.mint,
+    destination,
     mintAuthority,
     amount
   );
 }
 
-export async function getATA(
+export async function findATA(
   ctx: Context,
   owner: PublicKey,
   mint: PublicKey
