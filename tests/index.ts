@@ -47,18 +47,18 @@ describe("ido", () => {
     await buyAcdm(ctx, new BN(500), ctx.user1);
 
     expect(await (await ctx.acdmATA(ctx.user1.publicKey)).amount(ctx)).to.eql(
-      BigInt(500)
+      500
     );
     expect(await (await ctx.usdcATA(ctx.user1.publicKey)).amount(ctx)).to.eql(
-      BigInt(50_000_000)
+      50_000_000
     );
     expect(await (await ctx.usdcATA(ctx.user2.publicKey)).amount(ctx)).to.eql(
-      BigInt(102_500_000)
+      102_500_000
     );
     expect(await (await ctx.usdcATA(ctx.user3.publicKey)).amount(ctx)).to.eql(
-      BigInt(1_500_000)
+      1_500_000
     );
-    expect(await ctx.idoUsdc.amount(ctx)).to.eql(BigInt(46_000_000));
+    expect(await ctx.idoUsdc.amount(ctx)).to.eql(46_000_000);
   });
 
   it("fails to buy too much", async () => {
@@ -69,7 +69,7 @@ describe("ido", () => {
   it("starts trade round", async () => {
     await startTradeRound(ctx);
 
-    expect(await ctx.idoAcdm.amount(ctx)).to.eql(BigInt(0));
+    expect(await ctx.idoAcdm.amount(ctx)).to.eql(0);
   });
 
   let orderId: BN;
@@ -79,40 +79,38 @@ describe("ido", () => {
 
     expect(orderId.toNumber()).to.eq(0);
     expect(await (await ctx.acdmATA(ctx.user1.publicKey)).amount(ctx)).to.eql(
-      BigInt(400)
+      400
     );
-    expect(await (await ctx.orderAcdm(orderId)).amount(ctx)).to.eql(
-      BigInt(100)
-    );
+    expect(await (await ctx.orderAcdm(orderId)).amount(ctx)).to.eql(100);
   });
 
   it("redeems order partly", async () => {
     await redeemOrder(ctx, orderId, new BN(40), ctx.user2);
 
     expect(await (await ctx.usdcATA(ctx.user1.publicKey)).amount(ctx)).to.eql(
-      BigInt(54_940_000)
+      54_940_000
     );
     expect(await (await ctx.acdmATA(ctx.user2.publicKey)).amount(ctx)).to.eql(
-      BigInt(40)
+      40
     );
-    expect(await (await ctx.orderAcdm(orderId)).amount(ctx)).to.eql(BigInt(60));
+    expect(await (await ctx.orderAcdm(orderId)).amount(ctx)).to.eql(60);
   });
 
   it("removes order", async () => {
     await removeOrder(ctx, orderId, ctx.user1);
 
     expect(await (await ctx.acdmATA(ctx.user1.publicKey)).amount(ctx)).to.eql(
-      BigInt(460)
+      460
     );
   });
 
   it("withdraws ido usdc", async () => {
     await withdrawIdoUsdc(ctx);
 
-    expect(await ctx.idoUsdc.amount(ctx)).to.eql(BigInt(0));
+    expect(await ctx.idoUsdc.amount(ctx)).to.eql(0);
     expect(
       await (await ctx.usdcATA(ctx.idoAuthority.publicKey)).amount(ctx)
-    ).to.eql(BigInt(46_000_000));
+    ).to.eql(46_000_000);
   });
 
   it("ends ido", async () => {

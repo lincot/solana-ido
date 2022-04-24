@@ -14,8 +14,8 @@ export class TokenAccount extends PublicKey {
     this.mint = mint;
   }
 
-  async amount(ctx: Context): Promise<BigInt> {
-    return (await getAccount(ctx.connection, this)).amount;
+  async amount(ctx: Context): Promise<number> {
+    return Number((await getAccount(ctx.connection, this)).amount);
   }
 }
 
