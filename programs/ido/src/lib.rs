@@ -411,8 +411,7 @@ impl<'info> StartSaleRound<'info> {
 
 impl<'info> BuyAcdm<'info> {
     fn transfer_acdm(&self, amount: u64) -> Result<()> {
-        let seeds = &[b"ido".as_ref(), &[self.ido.bump]];
-        let signer = &[&seeds[..]];
+        let signer: &[&[&[u8]]] = &[&[b"ido".as_ref(), &[self.ido.bump]]];
         let cpi_accounts = Transfer {
             from: self.ido_acdm.to_account_info(),
             to: self.buyer_acdm.to_account_info(),
@@ -430,8 +429,7 @@ impl<'info> StartTradeRound<'info> {
             return Ok(());
         }
 
-        let seeds = &[b"ido".as_ref(), &[self.ido.bump]];
-        let signer = &[&seeds[..]];
+        let signer: &[&[&[u8]]] = &[&[b"ido".as_ref(), &[self.ido.bump]]];
         let cpi_accounts = Burn {
             mint: self.acdm_mint.to_account_info(),
             from: self.ido_acdm.to_account_info(),
@@ -469,8 +467,7 @@ impl<'info> RedeemOrder<'info> {
     }
 
     fn transfer_acdm_to_buyer(&self, id: u64, amount: u64) -> Result<()> {
-        let seeds = &[b"order".as_ref(), &id.to_le_bytes(), &[self.order.bump]];
-        let signer = &[&seeds[..]];
+        let signer: &[&[&[u8]]] = &[&[b"order".as_ref(), &id.to_le_bytes(), &[self.order.bump]]];
         let cpi_accounts = Transfer {
             from: self.order_acdm.to_account_info(),
             to: self.buyer_acdm.to_account_info(),
@@ -484,8 +481,7 @@ impl<'info> RedeemOrder<'info> {
 
 impl<'info> WithdrawIdoUsdc<'info> {
     fn withdraw_ido_usdc(&self) -> Result<()> {
-        let seeds = &[b"ido".as_ref(), &[self.ido.bump]];
-        let signer = &[&seeds[..]];
+        let signer: &[&[&[u8]]] = &[&[b"ido".as_ref(), &[self.ido.bump]]];
         let cpi_accounts = Transfer {
             from: self.ido_usdc.to_account_info(),
             to: self.to.to_account_info(),
@@ -505,8 +501,7 @@ impl<'info> RemoveOrder<'info> {
             return Ok(());
         }
 
-        let seeds = &[b"order".as_ref(), &id.to_le_bytes(), &[self.order.bump]];
-        let signer = &[&seeds[..]];
+        let signer: &[&[&[u8]]] = &[&[b"order".as_ref(), &id.to_le_bytes(), &[self.order.bump]]];
         let cpi_accounts = Transfer {
             from: self.order_acdm.to_account_info(),
             to: self.seller_acdm.to_account_info(),
@@ -518,8 +513,7 @@ impl<'info> RemoveOrder<'info> {
     }
 
     fn close_order_acdm_account(&self, id: u64) -> Result<()> {
-        let seeds = &[b"order".as_ref(), &id.to_le_bytes(), &[self.order.bump]];
-        let signer = &[&seeds[..]];
+        let signer: &[&[&[u8]]] = &[&[b"order".as_ref(), &id.to_le_bytes(), &[self.order.bump]]];
         let cpi_accounts = CloseAccount {
             account: self.order_acdm.to_account_info(),
             destination: self.seller.to_account_info(),
