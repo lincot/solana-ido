@@ -102,7 +102,7 @@ pub mod ido {
             usdc_amount_to_ido,
             usdc_amount_to_referer,
             usdc_amount_to_referer2,
-            ctx.accounts.buyer_member.referer,
+            &ctx.accounts.buyer_member,
             &ctx.accounts.buyer,
             &ctx.accounts.buyer_usdc,
             &ctx.accounts.ido_usdc,
@@ -141,7 +141,6 @@ pub mod ido {
         ctx.accounts.transfer_acdm(acdm_amount)?;
 
         ctx.accounts.order.bump = *ctx.bumps.get("order").unwrap();
-        ctx.accounts.order.bump_acdm = *ctx.bumps.get("order_acdm").unwrap();
         ctx.accounts.order.authority = ctx.accounts.seller.key();
         ctx.accounts.order.price = acdm_price;
 
@@ -183,7 +182,7 @@ pub mod ido {
             usdc_amount_to_ido,
             usdc_amount_to_referer,
             usdc_amount_to_referer2,
-            ctx.accounts.seller_member.referer,
+            &ctx.accounts.seller_member,
             &ctx.accounts.buyer,
             &ctx.accounts.buyer_usdc,
             &ctx.accounts.ido_usdc,

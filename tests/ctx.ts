@@ -77,11 +77,8 @@ export class Context {
   }
 
   async orderAcdm(id: BN): Promise<TokenAccount> {
-    const address = await findPDA(this, [
-      Buffer.from("order_acdm"),
-      id.toArrayLike(Buffer, "le", 8),
-    ]);
-    return new TokenAccount(address, this.acdmMint);
+    const order = await this.order(id);
+    return this.acdmATA(order);
   }
 
   async acdmATA(owner: PublicKey): Promise<TokenAccount> {

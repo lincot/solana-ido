@@ -11,7 +11,6 @@ pub fn get_referer_member<'info>(
     if remaining_accounts.is_empty() {
         return err!(IdoError::RefererMemberAccountNotProvided);
     }
-
     let referer_member = Account::<Member>::try_from(&remaining_accounts[0])?;
 
     let pda_key =
@@ -29,22 +28,21 @@ pub fn send_to_referers_and_ido<'info>(
     mut usdc_amount_to_ido: u64,
     usdc_amount_to_referer: u64,
     usdc_amount_to_referer2: u64,
-    referer: Option<Pubkey>,
+    referring_member: &Account<'info, Member>,
     buyer: &Signer<'info>,
     buyer_usdc: &Account<'info, TokenAccount>,
     ido_usdc: &Account<'info, TokenAccount>,
     token_program: &Program<'info, Token>,
     remaining_accounts: &[AccountInfo<'info>],
 ) -> Result<()> {
-    if let Some(referer) = referer {
+    if let Some(referer) = referring_member.referer {
         let referer_member = get_referer_member(remaining_accounts, referer)?;
 
         if remaining_accounts.len() < 2 {
             return err!(IdoError::RefererTokenAccountNotProvided);
         }
-
-        let user2_usdc = Account::<TokenAccount>::try_from(&remaining_accounts[1])?;
-        if user2_usdc.owner != referer {
+        let referer_usdc = Account::<TokenAccount>::try_from(&remaining_accounts[1])?;
+        if referer_usdc.owner != referer {
             return err!(IdoError::RefererOwner);
         }
 
@@ -54,7 +52,7 @@ pub fn send_to_referers_and_ido<'info>(
 
         let cpi_accounts = Transfer {
             from: buyer_usdc.to_account_info(),
-            to: remaining_accounts[1].clone(),
+            to: referer_usdc.to_account_info(),
             authority: buyer.to_account_info(),
         };
         let cpi_program = token_program.to_account_info();
@@ -65,9 +63,8 @@ pub fn send_to_referers_and_ido<'info>(
             if remaining_accounts.len() < 3 {
                 return err!(IdoError::RefererTokenAccountNotProvided);
             }
-
-            let user3_usdc = Account::<TokenAccount>::try_from(&remaining_accounts[2])?;
-            if user3_usdc.owner != referer2 {
+            let referer2_usdc = Account::<TokenAccount>::try_from(&remaining_accounts[2])?;
+            if referer2_usdc.owner != referer2 {
                 return err!(IdoError::RefererOwner);
             }
 
@@ -77,7 +74,7 @@ pub fn send_to_referers_and_ido<'info>(
 
             let cpi_accounts = Transfer {
                 from: buyer_usdc.to_account_info(),
-                to: remaining_accounts[2].clone(),
+                to: referer2_usdc.to_account_info(),
                 authority: buyer.to_account_info(),
             };
             let cpi_program = token_program.to_account_info();

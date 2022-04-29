@@ -29,12 +29,11 @@ impl Ido {
 #[account]
 pub struct Order {
     pub bump: u8,
-    pub bump_acdm: u8,
     pub authority: Pubkey,
     pub price: u64,
 }
 impl Order {
-    pub const LEN: usize = 1 + 1 + 32 + 8;
+    pub const LEN: usize = 1 + 32 + 8;
 }
 
 #[account]
