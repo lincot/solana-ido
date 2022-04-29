@@ -77,8 +77,7 @@ export class Context {
   }
 
   async orderAcdm(id: BN): Promise<TokenAccount> {
-    const order = await this.order(id);
-    return this.acdmATA(order);
+    return this.acdmATA(await this.order(id));
   }
 
   async acdmATA(owner: PublicKey): Promise<TokenAccount> {

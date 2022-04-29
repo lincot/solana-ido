@@ -39,14 +39,12 @@ pub mod ido {
         ctx.accounts.ido.round_time = round_time;
         ctx.accounts.ido.current_state_start_ts = ts;
 
-        emit!(InitializeEvent { ts });
+        emit!(InitializeEvent {});
 
         Ok(())
     }
 
     pub fn register_member(ctx: Context<RegisterMember>, referer: Option<Pubkey>) -> Result<()> {
-        let ts = Clock::get()?.unix_timestamp as u32;
-
         ctx.accounts.member.bump = *ctx.bumps.get("member").unwrap();
         ctx.accounts.member.referer = referer;
 
@@ -54,7 +52,9 @@ pub mod ido {
             get_referer_member(ctx.remaining_accounts, referer)?;
         }
 
-        emit!(RegisterMemberEvent { ts });
+        emit!(RegisterMemberEvent {
+            authority: ctx.accounts.authority.key(),
+        });
 
         Ok(())
     }
@@ -76,7 +76,10 @@ pub mod ido {
         let amount_to_mint = ctx.accounts.ido.usdc_traded / ctx.accounts.ido.acdm_price;
         ctx.accounts.mint_acdm(amount_to_mint)?;
 
-        emit!(StartSaleRoundEvent { ts });
+        emit!(StartSaleRoundEvent {
+            acdm_price: ctx.accounts.ido.acdm_price,
+            minted_amount: amount_to_mint,
+        });
 
         Ok(())
     }
@@ -85,8 +88,6 @@ pub mod ido {
         ctx: Context<'a, 'b, 'b, 'info, BuyAcdm<'info>>,
         acdm_amount: u64,
     ) -> Result<()> {
-        let ts = Clock::get()?.unix_timestamp as u32;
-
         is_sale_round(&ctx.accounts.ido)?;
 
         let usdc_amount_to_ido = acdm_amount
@@ -112,7 +113,10 @@ pub mod ido {
 
         ctx.accounts.transfer_acdm(acdm_amount)?;
 
-        emit!(BuyAcdmEvent { ts });
+        emit!(BuyAcdmEvent {
+            buyer: ctx.accounts.buyer.key(),
+            amount: acdm_amount,
+        });
 
         Ok(())
     }
@@ -128,14 +132,12 @@ pub mod ido {
 
         ctx.accounts.burn_acdm()?;
 
-        emit!(StartTradeRoundEvent { ts });
+        emit!(StartTradeRoundEvent {});
 
         Ok(())
     }
 
     pub fn add_order(ctx: Context<AddOrder>, acdm_amount: u64, acdm_price: u64) -> Result<()> {
-        let ts = Clock::get()?.unix_timestamp as u32;
-
         is_trade_round(&ctx.accounts.ido)?;
 
         ctx.accounts.transfer_acdm(acdm_amount)?;
@@ -145,11 +147,10 @@ pub mod ido {
         ctx.accounts.order.price = acdm_price;
 
         emit!(AddOrderEvent {
-            ts,
             id: ctx.accounts.ido.orders,
+            seller: ctx.accounts.seller.key(),
             amount: acdm_amount,
             price: acdm_price,
-            seller: ctx.accounts.seller.key(),
         });
 
         ctx.accounts.ido.orders += 1;
@@ -162,8 +163,6 @@ pub mod ido {
         id: u64,
         acdm_amount: u64,
     ) -> Result<()> {
-        let ts = Clock::get()?.unix_timestamp as u32;
-
         is_trade_round(&ctx.accounts.ido)?;
 
         let usdc_amount_total = acdm_amount
@@ -196,32 +195,27 @@ pub mod ido {
         ctx.accounts.transfer_acdm_to_buyer(id, acdm_amount)?;
 
         emit!(RedeemOrderEvent {
-            ts,
             id,
             buyer: ctx.accounts.buyer.key(),
-            amount: acdm_amount
+            amount: acdm_amount,
         });
 
         Ok(())
     }
 
     pub fn remove_order(ctx: Context<RemoveOrder>, id: u64) -> Result<()> {
-        let ts = Clock::get()?.unix_timestamp as u32;
-
         ctx.accounts.send_leftover_to_seller(id)?;
         ctx.accounts.close_order_acdm_account(id)?;
 
-        emit!(RemoveOrderEvent { ts, id });
+        emit!(RemoveOrderEvent { id });
 
         Ok(())
     }
 
     pub fn withdraw_ido_usdc(ctx: Context<WithdrawIdoUsdc>) -> Result<()> {
-        let ts = Clock::get()?.unix_timestamp as u32;
-
         ctx.accounts.transfer()?;
 
-        emit!(WithdrawIdoUsdcEvent { ts });
+        emit!(WithdrawIdoUsdcEvent {});
 
         Ok(())
     }
@@ -234,7 +228,7 @@ pub mod ido {
         ctx.accounts.ido.state = IdoState::Over;
         ctx.accounts.ido.current_state_start_ts = ts;
 
-        emit!(EndIdoEvent { ts });
+        emit!(EndIdoEvent {});
 
         Ok(())
     }
