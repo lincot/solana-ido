@@ -1,13 +1,15 @@
 use anchor_lang::prelude::*;
-use anchor_spl::token::{self, Burn, CloseAccount, MintTo, Token, TokenAccount, Transfer};
+use anchor_spl::token::{self, Token, TokenAccount, Transfer};
 
 use account::*;
-use context::*;
+use context_admin::*;
+use context_user::*;
 use error::*;
 use event::*;
 
 pub mod account;
-pub mod context;
+pub mod context_admin;
+pub mod context_user;
 pub mod error;
 pub mod event;
 
@@ -221,7 +223,7 @@ pub mod ido {
     pub fn withdraw_ido_usdc(ctx: Context<WithdrawIdoUsdc>) -> Result<()> {
         let ts = Clock::get()?.unix_timestamp as u32;
 
-        ctx.accounts.withdraw_ido_usdc()?;
+        ctx.accounts.transfer()?;
 
         emit!(WithdrawIdoUsdcEvent { ts });
 
@@ -394,133 +396,4 @@ fn send_to_referers_and_ido<'info>(
     let cpi_program = token_program.to_account_info();
     let cpi_ctx = CpiContext::new(cpi_program, cpi_accounts);
     token::transfer(cpi_ctx, usdc_amount_to_ido)
-}
-
-impl<'info> StartSaleRound<'info> {
-    fn mint_acdm(&self, amount: u64) -> Result<()> {
-        let cpi_accounts = MintTo {
-            mint: self.acdm_mint.to_account_info(),
-            to: self.ido_acdm.to_account_info(),
-            authority: self.acdm_mint_authority.to_account_info(),
-        };
-        let cpi_program = self.token_program.to_account_info();
-        let cpi_ctx = CpiContext::new(cpi_program, cpi_accounts);
-        token::mint_to(cpi_ctx, amount)
-    }
-}
-
-impl<'info> BuyAcdm<'info> {
-    fn transfer_acdm(&self, amount: u64) -> Result<()> {
-        let signer: &[&[&[u8]]] = &[&[b"ido".as_ref(), &[self.ido.bump]]];
-        let cpi_accounts = Transfer {
-            from: self.ido_acdm.to_account_info(),
-            to: self.buyer_acdm.to_account_info(),
-            authority: self.ido.to_account_info(),
-        };
-        let cpi_program = self.token_program.to_account_info();
-        let cpi_ctx = CpiContext::new_with_signer(cpi_program, cpi_accounts, signer);
-        token::transfer(cpi_ctx, amount)
-    }
-}
-
-impl<'info> StartTradeRound<'info> {
-    fn burn_acdm(&self) -> Result<()> {
-        if self.ido_acdm.amount == 0 {
-            return Ok(());
-        }
-
-        let signer: &[&[&[u8]]] = &[&[b"ido".as_ref(), &[self.ido.bump]]];
-        let cpi_accounts = Burn {
-            mint: self.acdm_mint.to_account_info(),
-            from: self.ido_acdm.to_account_info(),
-            authority: self.ido.to_account_info(),
-        };
-        let cpi_program = self.token_program.to_account_info();
-        let cpi_ctx = CpiContext::new_with_signer(cpi_program, cpi_accounts, signer);
-        token::burn(cpi_ctx, self.ido_acdm.amount)
-    }
-}
-
-impl<'info> AddOrder<'info> {
-    fn transfer_acdm(&self, amount: u64) -> Result<()> {
-        let cpi_accounts = Transfer {
-            from: self.seller_acdm.to_account_info(),
-            to: self.order_acdm.to_account_info(),
-            authority: self.seller.to_account_info(),
-        };
-        let cpi_program = self.token_program.to_account_info();
-        let cpi_ctx = CpiContext::new(cpi_program, cpi_accounts);
-        token::transfer(cpi_ctx, amount)
-    }
-}
-
-impl<'info> RedeemOrder<'info> {
-    fn transfer_usdc_to_seller(&self, amount: u64) -> Result<()> {
-        let cpi_accounts = Transfer {
-            from: self.buyer_usdc.to_account_info(),
-            to: self.seller_usdc.to_account_info(),
-            authority: self.buyer.to_account_info(),
-        };
-        let cpi_program = self.token_program.to_account_info();
-        let cpi_ctx = CpiContext::new(cpi_program, cpi_accounts);
-        token::transfer(cpi_ctx, amount)
-    }
-
-    fn transfer_acdm_to_buyer(&self, id: u64, amount: u64) -> Result<()> {
-        let signer: &[&[&[u8]]] = &[&[b"order".as_ref(), &id.to_le_bytes(), &[self.order.bump]]];
-        let cpi_accounts = Transfer {
-            from: self.order_acdm.to_account_info(),
-            to: self.buyer_acdm.to_account_info(),
-            authority: self.order.to_account_info(),
-        };
-        let cpi_program = self.token_program.to_account_info();
-        let cpi_ctx = CpiContext::new_with_signer(cpi_program, cpi_accounts, signer);
-        token::transfer(cpi_ctx, amount)
-    }
-}
-
-impl<'info> WithdrawIdoUsdc<'info> {
-    fn withdraw_ido_usdc(&self) -> Result<()> {
-        let signer: &[&[&[u8]]] = &[&[b"ido".as_ref(), &[self.ido.bump]]];
-        let cpi_accounts = Transfer {
-            from: self.ido_usdc.to_account_info(),
-            to: self.to.to_account_info(),
-            authority: self.ido.to_account_info(),
-        };
-        let cpi_program = self.token_program.to_account_info();
-        let cpi_ctx = CpiContext::new_with_signer(cpi_program, cpi_accounts, signer);
-        token::transfer(cpi_ctx, self.ido_usdc.amount)
-    }
-}
-
-impl<'info> RemoveOrder<'info> {
-    fn send_leftover_to_seller(&self, id: u64) -> Result<()> {
-        let amount = self.order_acdm.amount;
-
-        if amount == 0 {
-            return Ok(());
-        }
-
-        let signer: &[&[&[u8]]] = &[&[b"order".as_ref(), &id.to_le_bytes(), &[self.order.bump]]];
-        let cpi_accounts = Transfer {
-            from: self.order_acdm.to_account_info(),
-            to: self.seller_acdm.to_account_info(),
-            authority: self.order.to_account_info(),
-        };
-        let cpi_program = self.token_program.to_account_info();
-        let cpi_ctx = CpiContext::new_with_signer(cpi_program, cpi_accounts, signer);
-        token::transfer(cpi_ctx, amount)
-    }
-
-    fn close_order_acdm_account(&self, id: u64) -> Result<()> {
-        let signer: &[&[&[u8]]] = &[&[b"order".as_ref(), &id.to_le_bytes(), &[self.order.bump]]];
-        let cpi_accounts = CloseAccount {
-            account: self.order_acdm.to_account_info(),
-            destination: self.seller.to_account_info(),
-            authority: self.order.to_account_info(),
-        };
-        let cpi_program = self.token_program.to_account_info();
-        let cpi_ctx = CpiContext::new_with_signer(cpi_program, cpi_accounts, signer);
-        token::close_account(cpi_ctx)
-    }
 }
