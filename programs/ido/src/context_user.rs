@@ -21,9 +21,9 @@ pub struct RegisterMember<'info> {
 pub struct BuyAcdm<'info> {
     #[account(seeds = [b"ido"], bump = ido.bump)]
     pub ido: Account<'info, Ido>,
-    #[account(mut, seeds = [b"ido_acdm"], bump = ido.bump_acdm)]
+    #[account(mut, associated_token::authority = ido, associated_token::mint = ido.acdm_mint)]
     pub ido_acdm: Account<'info, TokenAccount>,
-    #[account(mut, seeds = [b"ido_usdc"], bump = ido.bump_usdc)]
+    #[account(mut, associated_token::authority = ido, associated_token::mint = ido.usdc_mint)]
     pub ido_usdc: Account<'info, TokenAccount>,
     pub buyer: Signer<'info>,
     #[account(seeds = [b"member", buyer.key().as_ref()], bump = buyer_member.bump)]
@@ -97,7 +97,7 @@ impl<'info> AddOrder<'info> {
 pub struct RedeemOrder<'info> {
     #[account(mut, seeds = [b"ido"], bump = ido.bump)]
     pub ido: Box<Account<'info, Ido>>,
-    #[account(mut, seeds = [b"ido_usdc"], bump = ido.bump_usdc)]
+    #[account(mut, associated_token::authority = ido, associated_token::mint = ido.usdc_mint)]
     pub ido_usdc: Box<Account<'info, TokenAccount>>,
     #[account(mut, seeds = [b"order", id.to_le_bytes().as_ref()], bump = order.bump)]
     pub order: Account<'info, Order>,

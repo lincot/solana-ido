@@ -9,27 +9,12 @@ pub struct Initialize<'info> {
     #[account(mut)]
     pub ido_authority: Signer<'info>,
     pub acdm_mint: Account<'info, Mint>,
-    #[account(
-        init,
-        payer = ido_authority,
-        seeds = [b"ido_acdm"],
-        bump,
-        token::authority = ido,
-        token::mint = acdm_mint,
-    )]
+    #[account(associated_token::authority = ido, associated_token::mint = acdm_mint)]
     pub ido_acdm: Account<'info, TokenAccount>,
     pub usdc_mint: Account<'info, Mint>,
-    #[account(
-        init,
-        payer = ido_authority,
-        seeds = [b"ido_usdc"],
-        bump,
-        token::authority = ido,
-        token::mint = usdc_mint,
-    )]
+    #[account(associated_token::authority = ido, associated_token::mint = usdc_mint)]
     pub ido_usdc: Account<'info, TokenAccount>,
     pub rent: Sysvar<'info, Rent>,
-    pub token_program: Program<'info, Token>,
     pub system_program: Program<'info, System>,
 }
 
@@ -42,7 +27,7 @@ pub struct StartSaleRound<'info> {
     pub acdm_mint_authority: Signer<'info>,
     #[account(mut, address = ido.acdm_mint, mint::authority = acdm_mint_authority)]
     pub acdm_mint: Account<'info, Mint>,
-    #[account(mut, seeds = [b"ido_acdm"], bump = ido.bump_acdm, token::authority = ido, token::mint = acdm_mint)]
+    #[account(mut, associated_token::authority = ido, associated_token::mint = acdm_mint)]
     pub ido_acdm: Account<'info, TokenAccount>,
     pub token_program: Program<'info, Token>,
 }
@@ -67,7 +52,7 @@ pub struct StartTradeRound<'info> {
     pub ido_authority: Signer<'info>,
     #[account(mut, address = ido.acdm_mint)]
     pub acdm_mint: Account<'info, Mint>,
-    #[account(mut, seeds = [b"ido_acdm"], bump = ido.bump_acdm)]
+    #[account(mut, associated_token::authority = ido, associated_token::mint = acdm_mint)]
     pub ido_acdm: Account<'info, TokenAccount>,
     pub token_program: Program<'info, Token>,
 }
@@ -95,7 +80,7 @@ pub struct WithdrawIdoUsdc<'info> {
     pub ido: Account<'info, Ido>,
     #[account(mut, address = ido.authority)]
     pub ido_authority: Signer<'info>,
-    #[account(mut, seeds = [b"ido_usdc"], bump = ido.bump_usdc)]
+    #[account(mut, associated_token::authority = ido, associated_token::mint = ido.usdc_mint)]
     pub ido_usdc: Account<'info, TokenAccount>,
     #[account(mut)]
     pub to: Account<'info, TokenAccount>,

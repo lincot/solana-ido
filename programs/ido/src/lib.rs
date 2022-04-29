@@ -31,8 +31,6 @@ pub mod ido {
         let ts = Clock::get()?.unix_timestamp as u32;
 
         ctx.accounts.ido.bump = *ctx.bumps.get("ido").unwrap();
-        ctx.accounts.ido.bump_acdm = *ctx.bumps.get("ido_acdm").unwrap();
-        ctx.accounts.ido.bump_usdc = *ctx.bumps.get("ido_usdc").unwrap();
         ctx.accounts.ido.authority = ctx.accounts.ido_authority.key();
         ctx.accounts.ido.state = IdoState::NotStarted;
         ctx.accounts.ido.acdm_mint = ctx.accounts.acdm_mint.key();
@@ -172,10 +170,7 @@ pub mod ido {
         let usdc_amount_total = acdm_amount
             .checked_mul(ctx.accounts.order.price)
             .ok_or(IdoError::OverflowingArgument)?;
-        ctx.accounts.ido.usdc_traded = ctx
-            .accounts
-            .ido
-            .usdc_traded
+        ctx.accounts.ido.usdc_traded = (ctx.accounts.ido.usdc_traded)
             .checked_add(usdc_amount_total)
             .ok_or(IdoError::OverflowingArgument)?;
 

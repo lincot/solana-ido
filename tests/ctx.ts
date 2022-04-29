@@ -48,14 +48,8 @@ export class Context {
     this.usdcMint = await createMint(this, this.usdcMintAuthority, 6);
 
     this.ido = await findPDA(this, [Buffer.from("ido")]);
-    this.idoAcdm = new TokenAccount(
-      await findPDA(this, [Buffer.from("ido_acdm")]),
-      this.acdmMint
-    );
-    this.idoUsdc = new TokenAccount(
-      await findPDA(this, [Buffer.from("ido_usdc")]),
-      this.usdcMint
-    );
+    this.idoAcdm = await this.acdmATA(this.ido);
+    this.idoUsdc = await this.usdcATA(this.ido);
 
     await mintTo(
       this,
