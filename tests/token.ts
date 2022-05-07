@@ -1,4 +1,5 @@
 import {
+  burn,
   getAccount,
   getOrCreateAssociatedTokenAccount,
 } from "@solana/spl-token";
@@ -65,4 +66,19 @@ export async function findATA(
   ).address;
 
   return new TokenAccount(address, mint);
+}
+
+export async function burnAll(
+  ctx: Context,
+  from: TokenAccount,
+  owner: Keypair
+): Promise<void> {
+  await burn(
+    ctx.connection,
+    ctx.payer,
+    from,
+    from.mint,
+    owner,
+    await from.amount(ctx)
+  );
 }

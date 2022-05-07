@@ -17,6 +17,7 @@ pub mod referral;
 
 declare_id!("Hxcws9iykaMYStaLJhHiz3RtxqrpgfjMxaarRoGVan5q");
 
+const INITIAL_ISSUE: u64 = 10_000;
 const INITIAL_PRICE: u64 = 100_000;
 
 const fn sale_price_formula(prev_price: u64) -> u64 {
@@ -35,7 +36,7 @@ pub mod ido {
         ctx.accounts.ido.state = IdoState::NotStarted;
         ctx.accounts.ido.acdm_mint = ctx.accounts.acdm_mint.key();
         ctx.accounts.ido.usdc_mint = ctx.accounts.usdc_mint.key();
-        ctx.accounts.ido.usdc_traded = 1_000_000_000;
+        ctx.accounts.ido.usdc_traded = INITIAL_ISSUE * INITIAL_PRICE;
         ctx.accounts.ido.round_time = round_time;
         ctx.accounts.ido.current_state_start_ts = ts;
 
@@ -92,11 +93,11 @@ pub mod ido {
 
         let usdc_amount_to_ido = acdm_amount
             .checked_mul(ctx.accounts.ido.acdm_price)
-            .ok_or(IdoError::OverflowingArgument)?; // 100%
+            .ok_or(IdoError::Overflow)?; // 100%
         let usdc_amount_to_referer = usdc_amount_to_ido / 20; // 5%
         let usdc_amount_to_referer2 = usdc_amount_to_ido
             .checked_mul(3)
-            .ok_or(IdoError::OverflowingArgument)?
+            .ok_or(IdoError::Overflow)?
             / 100; // 3%
 
         send_to_referers_and_ido(
@@ -167,10 +168,10 @@ pub mod ido {
 
         let usdc_amount_total = acdm_amount
             .checked_mul(ctx.accounts.order.price)
-            .ok_or(IdoError::OverflowingArgument)?;
+            .ok_or(IdoError::Overflow)?;
         ctx.accounts.ido.usdc_traded = (ctx.accounts.ido.usdc_traded)
             .checked_add(usdc_amount_total)
-            .ok_or(IdoError::OverflowingArgument)?;
+            .ok_or(IdoError::Overflow)?;
 
         let usdc_amount_to_ido = usdc_amount_total / 20; // 5%
         let usdc_amount_to_referer = usdc_amount_to_ido / 2; // 2.5%

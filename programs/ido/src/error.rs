@@ -3,8 +3,8 @@ use anchor_lang::prelude::*;
 #[error_code]
 pub enum IdoError {
     /// 6000 0x1770
-    #[msg("Argument too big or too small")]
-    OverflowingArgument,
+    #[msg("Overflow")]
+    Overflow,
     /// 6001 0x1771
     #[msg("Round cannot be ended yet")]
     CannotEndRound,
