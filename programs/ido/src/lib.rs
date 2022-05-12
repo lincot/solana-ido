@@ -1,16 +1,9 @@
+use crate::{account::*, context::*, error::*, event::*, referral::*};
 use anchor_lang::prelude::*;
 use anchor_spl::token::TokenAccount;
 
-use account::*;
-use context_admin::*;
-use context_user::*;
-use error::*;
-use event::*;
-use referral::*;
-
 pub mod account;
-pub mod context_admin;
-pub mod context_user;
+pub mod context;
 pub mod error;
 pub mod event;
 pub mod referral;

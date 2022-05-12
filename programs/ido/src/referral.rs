@@ -1,6 +1,4 @@
-use crate::account::*;
-use crate::error::*;
-use crate::ID;
+use crate::{account::*, error::*, ID};
 use anchor_lang::prelude::*;
 use anchor_spl::token::{self, Token, TokenAccount, Transfer};
 
