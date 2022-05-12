@@ -85,8 +85,8 @@ pub mod ido {
         Ok(())
     }
 
-    pub fn buy_acdm<'a, 'b, 'info>(
-        ctx: Context<'a, 'b, 'b, 'info, BuyAcdm<'info>>,
+    pub fn buy_acdm<'info>(
+        ctx: Context<'_, '_, '_, 'info, BuyAcdm<'info>>,
         acdm_amount: u64,
     ) -> Result<()> {
         is_sale_round(&ctx.accounts.ido)?;
@@ -159,8 +159,8 @@ pub mod ido {
         Ok(())
     }
 
-    pub fn redeem_order<'a, 'b, 'info>(
-        ctx: Context<'a, 'b, 'b, 'info, RedeemOrder<'info>>,
+    pub fn redeem_order<'info>(
+        ctx: Context<'_, '_, '_, 'info, RedeemOrder<'info>>,
         id: u64,
         acdm_amount: u64,
     ) -> Result<()> {
