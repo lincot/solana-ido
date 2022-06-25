@@ -42,6 +42,50 @@
   dependencies:
     "@hapi/hoek" "^9.0.0"
 
+"@metaplex-foundation/beet-solana@^0.1.1":
+  version "0.1.1"
+  resolved "https://registry.yarnpkg.com/@metaplex-foundation/beet-solana/-/beet-solana-0.1.1.tgz#85deec5d3354ee1da868bd6bb0de5ae1ea92d209"
+  integrity sha512-QV2DbxjaJWLkMvn12OC09g+r7a6R0uNwf8msYuOUSw4cG7amXzvFb7s0bh4IxY3Rk8/0ma0PfKi/FEdC7Hi4Pg==
+  dependencies:
+    "@metaplex-foundation/beet" ">=0.1.0"
+    "@solana/web3.js" "^1.31.0"
+
+"@metaplex-foundation/beet@>=0.1.0":
+  version "0.3.0"
+  resolved "https://registry.yarnpkg.com/@metaplex-foundation/beet/-/beet-0.3.0.tgz#e62dabbb93a9b4d0d87d5f1e5443c64c8c97abad"
+  integrity sha512-G/rNFbgK8py0PZe5oTHFNKzJTcPC859T4nV2ntDPQe8MHHlOv9SKjVShnYa0BH7uddJ9PYI+5mU8jX2G0mcxyw==
+  dependencies:
+    ansicolors "^0.3.2"
+    bn.js "^5.2.0"
+    debug "^4.3.3"
+
+"@metaplex-foundation/beet@^0.1.0":
+  version "0.1.4"
+  resolved "https://registry.yarnpkg.com/@metaplex-foundation/beet/-/beet-0.1.4.tgz#888dfd68fbbb027c045a4b6649bfc85b04610e26"
+  integrity sha512-gUlgl4h9XzSvSx7lUDvYQuy1eMxu4UXbt5MSR9K/dYIHHd3gcCxm8/6vn0VnUXMvpwVHS8tezxlsaKu+TIu6zQ==
+  dependencies:
+    ansicolors "^0.3.2"
+    bn.js "^5.2.0"
+    debug "^4.3.3"
+
+"@metaplex-foundation/cusper@^0.0.2":
+  version "0.0.2"
+  resolved "https://registry.yarnpkg.com/@metaplex-foundation/cusper/-/cusper-0.0.2.tgz#dc2032a452d6c269e25f016aa4dd63600e2af975"
+  integrity sha512-S9RulC2fFCFOQraz61bij+5YCHhSO9llJegK8c8Y6731fSi6snUSQJdCUqYS8AIgR0TKbQvdvgSyIIdbDFZbBA==
+
+"@metaplex-foundation/mpl-token-metadata@^2.2.0":
+  version "2.2.0"
+  resolved "https://registry.yarnpkg.com/@metaplex-foundation/mpl-token-metadata/-/mpl-token-metadata-2.2.0.tgz#01dc9d17c158cb4acd365ecbae7600ba09811d93"
+  integrity sha512-RCz8ULUGQ13n2S2IwdTJ+6O65fR0Nr6jNZet3eoe9t37U7wt5EfTHUf5sbmnj1nJbRnh4P7s5BoAjMeE7msGQw==
+  dependencies:
+    "@metaplex-foundation/beet" "^0.1.0"
+    "@metaplex-foundation/beet-solana" "^0.1.1"
+    "@metaplex-foundation/cusper" "^0.0.2"
+    "@solana/spl-token" "^0.2.0"
+    "@solana/web3.js" "^1.35.1"
+    bn.js "^5.2.0"
+    debug "^4.3.3"
+
 "@project-serum/anchor@^0.24.2":
   version "0.24.2"
   resolved "https://registry.npmjs.org/@project-serum/anchor/-/anchor-0.24.2.tgz"
@@ -120,6 +164,28 @@
     "@solana/buffer-layout-utils" "^0.2.0"
     "@solana/web3.js" "^1.32.0"
     start-server-and-test "^1.14.0"
+
+"@solana/web3.js@^1.31.0", "@solana/web3.js@^1.35.1":
+  version "1.44.2"
+  resolved "https://registry.yarnpkg.com/@solana/web3.js/-/web3.js-1.44.2.tgz#5303efd94a7f2d6054a1483a4b4db4a26eb2a392"
+  integrity sha512-DvrJMoKonLuaX0/KyyJXcP/+w+9q8mve4gN3hC2Ptg51K/Gi1/cx6oQN2lbRZb4wYPBd2s2GDAJAJUAwZGsEug==
+  dependencies:
+    "@babel/runtime" "^7.12.5"
+    "@ethersproject/sha2" "^5.5.0"
+    "@solana/buffer-layout" "^4.0.0"
+    bigint-buffer "^1.1.5"
+    bn.js "^5.0.0"
+    borsh "^0.7.0"
+    bs58 "^4.0.1"
+    buffer "6.0.1"
+    fast-stable-stringify "^1.0.0"
+    jayson "^3.4.4"
+    js-sha3 "^0.8.0"
+    node-fetch "2"
+    rpc-websockets "^7.4.2"
+    secp256k1 "^4.0.2"
+    superstruct "^0.14.2"
+    tweetnacl "^1.0.0"
 
 "@solana/web3.js@^1.32.0":
   version "1.37.1"
@@ -287,6 +353,11 @@ ansi-styles@^4.0.0, ansi-styles@^4.1.0:
   integrity sha512-zbB9rCJAT1rbjiVDb2hqKFHNYLxgtk8NURxZ3IZwD3F6NtxbXZQCnnSi1Lkx+IDohdPlFp222wVALIheZJQSEg==
   dependencies:
     color-convert "^2.0.1"
+
+ansicolors@^0.3.2:
+  version "0.3.2"
+  resolved "https://registry.yarnpkg.com/ansicolors/-/ansicolors-0.3.2.tgz#665597de86a9ffe3aa9bfbe6cae5c6ea426b4979"
+  integrity sha512-QXu7BPrP29VllRxH8GwB7x5iX5qWKAAMLqKQGWTeLWVlNHNOpVMJ91dsxQAIWXpjuW5wqvxu3Jd/nRjrJ+0pqg==
 
 anymatch@~3.1.2:
   version "3.1.2"
@@ -592,6 +663,13 @@ debug@4.3.3:
   dependencies:
     ms "2.1.2"
 
+debug@^4.3.3:
+  version "4.3.4"
+  resolved "https://registry.yarnpkg.com/debug/-/debug-4.3.4.tgz#1319f6579357f2338d3337d2cdd4914bb5dcc865"
+  integrity sha512-PRWFHuSU3eDtQJPvnNY7Jcket1j0t5OuOsFzPPzsekD52Zl8qUfFIPEiswXqIvHWGVHOgX+7G/vCNNhehwxfkQ==
+  dependencies:
+    ms "2.1.2"
+
 decamelize@^4.0.0:
   version "4.0.0"
   resolved "https://registry.npmjs.org/decamelize/-/decamelize-4.0.0.tgz"
@@ -709,6 +787,11 @@ eyes@^0.1.8:
   version "0.1.8"
   resolved "https://registry.npmjs.org/eyes/-/eyes-0.1.8.tgz"
   integrity sha1-Ys8SAjTGg3hdkCNIqADvPgzCC8A=
+
+fast-stable-stringify@^1.0.0:
+  version "1.0.0"
+  resolved "https://registry.yarnpkg.com/fast-stable-stringify/-/fast-stable-stringify-1.0.0.tgz#5c5543462b22aeeefd36d05b34e51c78cb86d313"
+  integrity sha512-wpYMUmFu5f00Sm0cj2pfivpmawLZ0NKdviQ4w9zJeR8JVtOpOxHmLaJuj0vxvGqMJQWyP/COUkF75/57OKyRag==
 
 file-uri-to-path@1.0.0:
   version "1.0.0"
@@ -1117,7 +1200,7 @@ node-addon-api@^2.0.0:
   resolved "https://registry.npmjs.org/node-addon-api/-/node-addon-api-2.0.2.tgz"
   integrity sha512-Ntyt4AIXyaLIuMHF6IOoTakB3K+RWxwtsHNRxllEoA6vPwP9o4866g6YWDLUdnucilZhmkxiHwHr11gAENw+QA==
 
-node-fetch@2.6.7:
+node-fetch@2, node-fetch@2.6.7:
   version "2.6.7"
   resolved "https://registry.npmjs.org/node-fetch/-/node-fetch-2.6.7.tgz"
   integrity sha512-ZjMPFEfVx5j+y2yF35Kzx5sF7kDzxuDj6ziH4FFbOp87zKDZNx8yExJIb05OGF4Nlt9IHFIMBkRl41VdvcNdbQ==

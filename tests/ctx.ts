@@ -1,22 +1,29 @@
 import * as anchor from "@project-serum/anchor";
 import { BN, Program } from "@project-serum/anchor";
-import { Connection, Keypair, PublicKey } from "@solana/web3.js";
+import {
+  Connection,
+  Keypair,
+  PublicKey,
+  sendAndConfirmTransaction,
+  Transaction,
+} from "@solana/web3.js";
 import { Ido } from "../target/types/ido";
-import { createMint, findATA, TokenAccount } from "./token";
+import { createMint, findATA, getTokenMetadata, TokenAccount } from "./token";
 import { airdrop, findPDA } from "./utils";
+import { createCreateMetadataAccountV2Instruction } from "@metaplex-foundation/mpl-token-metadata";
 
 export class Context {
   connection: Connection;
   program: Program<Ido>;
   payer: Keypair;
 
-  acdmMintAuthority: Keypair;
   acdmMint: PublicKey;
-  usdcMintAuthority: Keypair;
+  acdmMintAuthority: Keypair;
   usdcMint: PublicKey;
+  usdcMintAuthority: Keypair;
 
-  idoAuthority: Keypair;
   ido: PublicKey;
+  idoAuthority: Keypair;
   idoAcdm: TokenAccount;
   idoUsdc: TokenAccount;
 
@@ -41,6 +48,7 @@ export class Context {
   async setup() {
     await airdrop(this, [
       this.idoAuthority.publicKey,
+      this.acdmMintAuthority.publicKey,
       this.user1.publicKey,
       this.user2.publicKey,
       this.user3.publicKey,
@@ -48,6 +56,36 @@ export class Context {
 
     this.acdmMint = await createMint(this, this.acdmMintAuthority, 2);
     this.usdcMint = await createMint(this, this.usdcMintAuthority, 6);
+
+    const acdmMetadata = await getTokenMetadata(this.acdmMint);
+
+    let ix = createCreateMetadataAccountV2Instruction(
+      {
+        metadata: acdmMetadata,
+        mint: this.acdmMint,
+        mintAuthority: this.acdmMintAuthority.publicKey,
+        payer: this.acdmMintAuthority.publicKey,
+        updateAuthority: this.acdmMintAuthority.publicKey,
+      },
+      {
+        createMetadataAccountArgsV2: {
+          data: {
+            name: "Academy Token",
+            symbol: "ACDM",
+            uri: "https://academy.com/token-metadata",
+            sellerFeeBasisPoints: 10,
+            creators: null,
+            collection: null,
+            uses: null,
+          },
+          isMutable: true,
+        },
+      }
+    );
+    let tx = new Transaction().add(ix);
+    await sendAndConfirmTransaction(this.connection, tx, [
+      this.acdmMintAuthority,
+    ]);
 
     this.ido = await findPDA(this, [Buffer.from("ido")]);
     this.idoAcdm = await this.acdmATA(this.ido);

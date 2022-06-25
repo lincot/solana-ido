@@ -5,6 +5,13 @@ ido = "AUuf3MCis1CgAsFXHgson2r3g4VjqUdD7r3CUc8mEKj3"
 [programs.devnet]
 ido = "AUuf3MCis1CgAsFXHgson2r3g4VjqUdD7r3CUc8mEKj3"
 
+[test]
+startup_wait = 30000
+[test.validator]
+url = "https://api.devnet.solana.com"
+[[test.validator.clone]]
+address = "metaqbxxUerdq28cj1RbAWkYQm3ybzjb6a8bt518x1s"
+
 [registry]
 url = "https://anchor.projectserum.com"
 

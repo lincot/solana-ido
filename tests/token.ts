@@ -6,6 +6,7 @@ import {
 import { Keypair, PublicKey } from "@solana/web3.js";
 import { Context } from "./ctx";
 import * as token from "@solana/spl-token";
+import { PROGRAM_ID as TOKEN_METADATA_PROGRAM_ID } from "@metaplex-foundation/mpl-token-metadata";
 
 export class TokenAccount extends PublicKey {
   mint: PublicKey;
@@ -81,4 +82,17 @@ export async function burnAll(
     owner,
     await from.amount(ctx)
   );
+}
+
+export async function getTokenMetadata(mint: PublicKey): Promise<PublicKey> {
+  return (
+    await PublicKey.findProgramAddress(
+      [
+        Buffer.from("metadata"),
+        TOKEN_METADATA_PROGRAM_ID.toBuffer(),
+        mint.toBuffer(),
+      ],
+      TOKEN_METADATA_PROGRAM_ID
+    )
+  )[0];
 }
