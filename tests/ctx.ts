@@ -25,7 +25,9 @@ export class Context {
   user3: Keypair;
 
   constructor() {
-    this.connection = new Connection("http://localhost:8899", "recent");
+    const provider = anchor.AnchorProvider.env();
+    anchor.setProvider(provider);
+    this.connection = provider.connection;
     this.program = anchor.workspace.Ido;
     this.payer = new Keypair();
     this.acdmMintAuthority = new Keypair();

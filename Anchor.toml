@@ -1,7 +1,9 @@
 [features]
 seeds = false
 [programs.localnet]
-ido = "Hxcws9iykaMYStaLJhHiz3RtxqrpgfjMxaarRoGVan5q"
+ido = "AUuf3MCis1CgAsFXHgson2r3g4VjqUdD7r3CUc8mEKj3"
+[programs.devnet]
+ido = "AUuf3MCis1CgAsFXHgson2r3g4VjqUdD7r3CUc8mEKj3"
 
 [registry]
 url = "https://anchor.projectserum.com"
